@@ -1,3 +1,4 @@
 python>=3.12.13
 pandas
 pymysql
+openai
