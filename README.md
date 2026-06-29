@@ -13,8 +13,8 @@ pip install -r requirements.txt
 ```
 
 ## 🗂️ Folder Structure
-Show users how your files are organized:
-├── dataset/          # Dataset source, Data Cleaning and Data Preparation, ML model
+Finpro-JobApp/
+├── dataset/
 ├── n8n/         # n8n backend files
 ├── pages/         # streamlit pages
 ├── sql/         # SQL injection
