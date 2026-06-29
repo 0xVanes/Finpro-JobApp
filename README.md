@@ -14,13 +14,13 @@ pip install -r requirements.txt
 
 ## 🗂️ Folder Structure
 Finpro-JobApp/
-├── dataset/
+├── dataset/          # Dataset source, Data Cleaning and Data Preparation, ML model
 ├── n8n/         # n8n backend files
 ├── pages/         # streamlit pages
 ├── sql/         # SQL injection
 ├── app.py         # main streamlit page
 ├── menu.py         # streamlit sidebar page
-├── requirements         # requirement environments
+├── requirements.txt         # requirement environments
 ├── style.css         # streamlit css
 └── README.md     # Main project guide
 
