@@ -13,18 +13,13 @@ def authenticated_menu():
     st.sidebar.caption(f"Role: {st.session_state.role}")
 
     st.sidebar.markdown(f"""
-<div style="display:flex;align-items:center;gap:12px;margin-bottom:15px;">
-    <div style="width:48px; height:48px; border-radius:14px;
-        background:linear-gradient(135deg,#7C6CFF,#59D6D6);
-        color:white; display:flex; align-items:center; justify-content:center;
-        font-size: 30px; font-weight:900;">JP
-    </div>
-    <div>
-        <div style = "font-size:20px;"> <b> JobPath </b> </div>
-        <div> Career Navigator </div>
-    </div>
-    
-</div> """, unsafe_allow_html=True)
+    <div class="jobpath-container">
+        <div class="icon-box">JP</div>
+        <div>
+            <div class ="title"> JobPath </div>
+            <div class ="subtitle"> Career Navigations </div>
+        </div>
+    </div>""", unsafe_allow_html=True)
 
     st.sidebar.divider()
     
