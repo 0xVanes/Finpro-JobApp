@@ -1,0 +1,122 @@
+:root {--bg:      #ffffff;
+    --fg:      #8B7CFF;
+    --sidebar-bg: #ffffff;
+    --primary: #7C6CFF;
+    --primary-light: #F1EEFF;
+    --text: #2B2B40;
+    --text-light: #8B8BA3;
+    --border: #ECECEC;}
+
+/* ---------- BASE ---------- */
+html, body, .stApp { background-color: var(--bg);
+    color: var(--fg);
+    font-size: 15px;}
+
+/* ---------- SIDEBAR ---------- */
+[data-testid="stSidebar"] {
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+}
+
+[data-testid="stSidebar"] > div:first-child {
+    padding: 1.3rem 1rem;
+}
+
+/* Welcome Header */
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h3 {
+    color: var(--text);
+    font-weight: 700;
+}
+
+[data-testid="stSidebar"] p {
+    color: var(--text-light);
+    font-size: 14px;
+}
+
+/* Divider */
+/* Divider belum transparent */
+hr,
+[data-testid="stDivider"],
+[data-testid="stSidebar"] hr {
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border-top: 1px solid var(--border) !important;
+    margin: 15px 0 !important;
+}
+
+/* Menu text */
+[data-testid="stSidebar"] h2 {
+    margin-top: 10px;
+    margin-bottom: 15px;
+}
+
+/* Page links */
+[data-testid="stSidebarNav"] {
+    padding-top: 5px;
+}
+
+[data-testid="stSidebarNav"] ul {
+    gap: 8px;
+}
+
+[data-testid="stSidebarNav"] a {
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 6px;
+    color: #444;
+    font-size: 15px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* Hover */
+[data-testid="stSidebarNav"] a:hover {
+    background: #b1a8d0; 
+    color: #7C6CFF;   
+}
+
+/* Active page */
+[data-testid="stSidebarNav"] a[aria-current="page"] {
+    background: #F2EEFF;
+    color: #7C6CFF;
+    font-weight: 700;
+}
+
+/* MASIH BELUM UNGU */
+[data-testid="stSidebarNav"] a[aria-current="page"] span {
+    color: #7C6CFF !important;
+}
+
+/* Icons */
+[data-testid="stSidebarNav"] span {
+    font-size: 17px;
+}
+
+/* Logout Button */
+.stButton button {
+    width: 100%;
+    border-radius: 10px;
+    background: var(--fg, white);
+    color: white;
+    border: none;
+    font-weight: 600;
+    padding: 10px;
+    transition: 0.2s;
+}
+
+.stButton button p,
+.stButton button div,
+.stButton button span {
+    color: white !important;
+}
+
+.stButton button:hover {
+    background: #6655F5;
+    color: white !important;
+}
+
+/* ---------- HERO ---------- */
