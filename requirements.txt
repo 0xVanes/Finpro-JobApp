@@ -3,3 +3,4 @@ pandas
 pymysql
 openai
 plotly
+python-dotenv
