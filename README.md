@@ -7,7 +7,6 @@ An AI Job Helper App for Freshgraduates
 * [Usage](#-usage)
 
 ## ⚙️ Installation
-Provide commands to get the project running:
 ```bash
 pip install -r requirements.txt
 ```
@@ -25,7 +24,6 @@ Finpro-JobApp/
 └── README.md     # Main project guide
 
 ## 💻 Usage
-Explain how to run or use the files:
 ```bash
 streamlit run app.py
 ```

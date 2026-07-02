@@ -14,15 +14,45 @@ def load_css():
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 load_css()
 
+## Webhook CV
+
+
+## ---------- FRONTEND STARTS HERE
 st.markdown("""
 <div class="career-header">
   <div class="emoji-bg">🛤️</div>
   <h1>Career Path Visualizer</h1>
-  <p class="sub">Peta jalur karir + gap skill + link sertifikasi spesifik</p>
+  <p class="sub">Peta jalur karir</p>
   <div class="badge-row">
     <span>Visualisasi jalur (FR-5.01)</span>
-    <span>Gap analysis (FR-5.02)</span>
-    <span>Link belajar (FR-5.04)</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+
+col1, col2, col3 = st.columns(3)
+# ambil data dari CV dan LLM
+with col1:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">📊</div>
+    <h3 class="career-title">Job Exp</h3>
+    <div class="career-job">Bidang</div>
+</div>""", unsafe_allow_html=True)
+    
+with col2:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">🎯</div>
+    <h3 class="career-title">Job Level</h3>
+    <div class="career-job">Level</div>
+</div>""", unsafe_allow_html=True)
+
+with col3:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">📈</div>
+    <h3 class="career-title">3 tahap</h3>
+    <div class="career-job">Ke Depan</div>
+</div>""", unsafe_allow_html=True)
+
+## ISI DARI Hasil LLM
+st.markdown(f"""<div class="salary-info">💡 Jalur: </div>""", unsafe_allow_html=True)
+st.divider()
