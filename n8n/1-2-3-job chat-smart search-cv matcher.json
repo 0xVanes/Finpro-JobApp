@@ -1,0 +1,607 @@
+{
+  "name": "JobPath - Main Orchestrator (3 Fitur)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "job-assistant",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2e46788d-bab2-4618-a7e7-66279f3babc3",
+      "name": "Webhook Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1024,
+        352
+      ],
+      "webhookId": "job-assistant",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.mode }}",
+                    "rightValue": "chat",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.mode }}",
+                    "rightValue": "search",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.mode }}",
+                    "rightValue": "cv_match",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "8962e1d1-8155-4b42-be61-587e0ab32379",
+      "name": "Route by Mode",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -736,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.query }}",
+        "options": {
+          "systemMessage": "=Kamu adalah asisten pencari kerja Indonesia. Gunakan tool rag_search untuk pencarian semantik (minat/skill). Jawab ramah dan singkat dalam Bahasa Indonesia. Jika pertanyaan di luar konteks lowongan kerja, jawab sopan bahwa kamu hanya membantu topik seputar pekerjaan."
+        }
+      },
+      "id": "56b50063-fd61-408c-aca4-e56990bf3ef7",
+      "name": "Chat Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -304,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "73a2e81e-1085-49ce-b584-7c8dc22ad2e5",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -288,
+        128
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Cari lowongan berdasarkan minat, skill, atau deskripsi pekerjaan",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "jobs_rag",
+          "mode": "list",
+          "cachedResultName": "jobs_rag"
+        },
+        "topK": 5,
+        "options": {}
+      },
+      "id": "7e2498f8-d384-434f-9981-70b7e4b822b6",
+      "name": "Qdrant Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        64
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "gYTHuwMeoAmQNNdz",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "0e610ab0-1db6-4c2f-a4fc-29e736649d90",
+      "name": "Embeddings OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        48,
+        192
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chat Agent LangChain output ada di key 'output' (string biasa).\n// Streamlit butuh key 'answer'.\nconst text = $input.first().json.output || '';\nreturn [{ json: { answer: text, jobs: [] } }];"
+      },
+      "id": "6eff2c60-bb32-4439-b90c-8948b4e4a5e4",
+      "name": "Format Chat Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Cari lowongan dengan kriteria: keyword={{ $json.body.keyword }}, work_type={{ $json.body.work_type }}, city={{ $json.body.city }}, salary_min={{ $json.body.salary_min }}, hybrid_only={{ $json.body.hybrid_only }}",
+        "options": {
+          "systemMessage": "=Kamu agent SQL. Buat query SELECT dari tabel jobs (kolom: job_title, company_name, location, city, work_type, is_hybrid, salary_min, salary_max, salary_raw, has_salary). Selalu LIMIT 20. Untuk gaji pakai salary_min >= nilai dan has_salary=TRUE. Untuk lokasi pakai city LIKE '%kota%'. Untuk hybrid pakai is_hybrid=TRUE.\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20)\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa markdown fence) dengan format persis:\n{\"jobs\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}"
+        }
+      },
+      "id": "f5039d8b-983e-4cc1-a7d6-692906d17e64",
+      "name": "SQL Search Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -304,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "5e960515-1ec6-4f4e-9b67-0dda546e29be",
+      "name": "OpenAI Chat Model1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        432
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Jalankan query SQL SELECT ke tabel jobs untuk mencari/menghitung lowongan sesuai kriteria (gaji, lokasi, tipe kerja, agregasi kota)",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('query', 'Query SQL SELECT lengkap dan valid untuk MySQL dari tabel jobs. Hanya SELECT, tidak boleh INSERT/UPDATE/DELETE.', 'string') }}",
+        "options": {}
+      },
+      "id": "692cd311-e4aa-4b3b-bc65-dd81b329380b",
+      "name": "Execute a SQL query in MySQL",
+      "type": "n8n-nodes-base.mySqlTool",
+      "typeVersion": 2.5,
+      "position": [
+        -16,
+        464
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "5WYe2yHO16V07U9e",
+          "name": "MySQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// SQL Search Agent diinstruksikan mengembalikan JSON string di key 'output'.\n// Parse dengan aman, fallback ke error jika format tidak valid.\nlet raw = $input.first().json.output || '';\n// jaga-jaga kalau LLM membungkus dengan ```json ... ```\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { error: '⚠️ Format respons pencarian tidak valid, coba lagi.' };\n}\nif (!parsed.jobs) parsed.jobs = [];\nif (!parsed.top_cities) parsed.top_cities = [];\nreturn [{ json: parsed }];"
+      },
+      "id": "4ce3127c-9d54-4ea0-9040-5bf34127ba69",
+      "name": "Format Search Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.cv_text }}",
+        "options": {
+          "systemMessage": "=Kamu agent analisis CV. Ekstrak skill, pengalaman, dan posisi terakhir dari teks CV berikut. Gunakan tool rag_search untuk mencari lowongan yang cocok dari database. Untuk setiap lowongan (maksimal 3), beri match_percentage (0-100), matching_skills, missing_skills, dan advice singkat.\n\nKembalikan HANYA JSON (tanpa teks lain, tanpa markdown fence) dengan format persis:\n{\"candidate_profile\": {\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]}, \"recommendations\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"match_percentage\":0,\"matching_skills\":[\"...\"],\"missing_skills\":[\"...\"],\"advice\":\"...\"}]}"
+        }
+      },
+      "id": "4e010d5f-00b7-4b69-8928-2d95aab9c7c1",
+      "name": "CV Matcher Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -288,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "791522cf-1e91-43e6-908e-319689e28f0f",
+      "name": "OpenAI Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        848
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Cari lowongan yang cocok dengan profil skill dan pengalaman kandidat dari CV",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "jobs_rag",
+          "mode": "list",
+          "cachedResultName": "jobs_rag"
+        },
+        "topK": 5,
+        "options": {}
+      },
+      "id": "ddefcf72-2457-4545-9277-5aa9fce286c2",
+      "name": "Qdrant Vector Store1",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        -64,
+        816
+      ],
+      "credentials": {
+        "qdrantApi": {
+          "id": "gYTHuwMeoAmQNNdz",
+          "name": "Qdrant account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "4a69d81e-9b5c-4747-8c5d-577e5489fe39",
+      "name": "Embeddings OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -64,
+        992
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $input.first().json.output || '';\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { error: '⚠️ Format respons CV Matcher tidak valid, coba lagi.' };\n}\nif (!parsed.candidate_profile) parsed.candidate_profile = {};\nif (!parsed.recommendations) parsed.recommendations = [];\nreturn [{ json: parsed }];"
+      },
+      "id": "00460aa8-3da8-4228-bd13-c70a1f8399bc",
+      "name": "Format CV Matcher Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        560,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "ce985cb4-784f-4cfc-a076-bc6b6b542c2a",
+      "name": "Respond to Streamlit",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1072,
+        256
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Entry": {
+      "main": [
+        [
+          {
+            "node": "Route by Mode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Mode": {
+      "main": [
+        [
+          {
+            "node": "Chat Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SQL Search Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CV Matcher Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Chat Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Chat Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Chat Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Chat Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Streamlit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SQL Search Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "SQL Search Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query in MySQL": {
+      "ai_tool": [
+        [
+          {
+            "node": "SQL Search Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Search Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Streamlit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV Matcher Agent": {
+      "main": [
+        [
+          {
+            "node": "Format CV Matcher Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "CV Matcher Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Vector Store1": {
+      "ai_tool": [
+        [
+          {
+            "node": "CV Matcher Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format CV Matcher Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Streamlit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f7ce4e63-6dfd-49b7-8295-42ba74e32f2f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0be89bab40da54884f818ca49d8dd593209a96a379190b97ff43adad4121c4b9"
+  },
+  "nodeGroups": [],
+  "id": "ysIp72D9B2b9wsHm",
+  "tags": []
+}
