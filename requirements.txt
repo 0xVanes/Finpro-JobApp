@@ -1,4 +1,28 @@
-python>=3.12.13
+# Python 3.12+
+# Daftar dependency (package) yang di-install lewat: pip install -r requirements.txt
+
+# --- Data exploration / EDA ---
 pandas
+numpy
+matplotlib
+seaborn
+
+# --- Notebook / Jupyter ---
+jupyter
+ipykernel
+
+# --- App & config ---
+streamlit
+python-dotenv
+
+# --- Databases (dipakai di notebook ingestion nanti) ---
 pymysql
+sqlalchemy
+qdrant-client
+
+# --- Machine learning (salary_ml.ipynb) ---
+scikit-learn
+joblib
+
+# --- LLM / embeddings ---
 openai

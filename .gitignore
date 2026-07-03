@@ -3,6 +3,12 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Project-specific (JobPath)
+models/                 # artefak ML hasil train (regenerate dari salary_ml.ipynb)
+secrets/                # sertifikat CA Aiven & rahasia lain
+*.pem
+.ingest_checkpoint.json # penanda progres resume ingestion
+
 # C extensions
 *.so
 
