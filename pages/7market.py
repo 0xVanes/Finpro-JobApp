@@ -128,4 +128,4 @@ def status(x):
     else:
         return "Rendah"
 top6["Status"] = top6["Demand"].apply(status)
-st.table(top6)
+st.dataframe(top6)

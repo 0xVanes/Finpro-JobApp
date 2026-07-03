@@ -1,0 +1,1009 @@
+{
+  "name": "4 & 5. career path & skill gap",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "#### Input CV Dummy Data\n- Name\n- Experience\n- Education\n- Projects\n- Skills/ Certificate\n\n- Ini harusnya tinggal ambil data dari workflow yang extract CV\n- Bikin AI message supaya ga nulis-nulis lagi",
+        "height": 272,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1488,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "1742d2ac-4dbb-412d-aeeb-c4db305701df",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "availableInChat": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        1696,
+        448
+      ],
+      "id": "4f2b77b2-ef13-4ea0-b856-f2cf8d367ad0",
+      "name": "When chat message received",
+      "webhookId": "e88228a8-7068-4017-96f2-a4a9a7bd81f4"
+    },
+    {
+      "parameters": {
+        "content": "### LLM liat dari SQL biasanya skillsnya butuh apa lagi",
+        "height": 448,
+        "width": 416
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1840,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "96255a7b-8a36-414e-b4df-67956e00aabe",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1984,
+        512
+      ],
+      "id": "0c6ac6dd-3be3-4299-b203-8f07705d7a0b",
+      "name": "Career Path Classification"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2000,
+        720
+      ],
+      "id": "69fca8d3-fb2a-46ef-b414-e5b17e92fb0a",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "content": "## Gap Analysis",
+        "height": 448,
+        "width": 272
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2272,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "db7de186-d474-411e-be23-43552065b0e1",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "### Recommend Ambil Sertifikasi dari Database SQL / Data Dummy",
+        "height": 448
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2560,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "a9e37697-10f6-4382-858e-7b465b397401",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "### Generate Career Roadmap in JSON",
+        "height": 448,
+        "width": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2816,
+        432
+      ],
+      "typeVersion": 1,
+      "id": "75c34127-ac8d-4e14-b767-57edc708e03e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a skills gap analyst. Based on the recommended careers below and the candidate's current skills/experience, identify which skills the candidate is lacking for each recommended career path.\n\nCandidate's recommended careers (from previous classification step which recommended TOP 5 Career):\n{{ $json.output }}\n\nFor each recommended career, determine:\n- required_skills: the key skills typically needed for that career\n- existing_skills: skills the candidate already has, matched from their profile\n- missing_skills: the gap, each with a priority (High/Medium/Low) based on how critical it is\n\nRespond with JSON only, no explanation, no markdown code fences. Example:\n{\n  \"gap_analysis\": [\n    {\n      \"career\": \"Data Analyst\",\n      \"required_skills\": [\"SQL\", \"Python\", \"Excel\", \"Data Visualization\", \"Statistics\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"SQL\", \"priority\": \"High\"},\n        {\"skill\": \"Data Visualization\", \"priority\": \"High\"},\n        {\"skill\": \"Statistics\", \"priority\": \"Medium\"}\n      ]\n    }\n  ]\n}\n\nadd a different schema for how much token you used",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2288,
+        512
+      ],
+      "id": "de6eec2f-e4d6-4c99-80f9-37daf2d3836b",
+      "name": "Gap Analysis"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2304,
+        720
+      ],
+      "id": "9e26d764-7b33-4242-91b8-5b8b2686845f",
+      "name": "Gap Analysis Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a learning advisor. Using the skill gap analysis below, recommend relevant certifications or courses for each missing skill, prioritizing High priority gaps first.\n\nUse the 'Select Certifications from MySQL' tool to look up legitimate certification data (provider, course name, url, level) from the dummy certifications database. If no close match exists in the database, suggest the closest well-known legit certification (e.g. Coursera, Google, Microsoft, DQLab, Dicoding) and mark its source as \"external\" instead of \"database\".\n\nSkill gap analysis:\n{{ $json.output }}\n\nRespond with JSON only, no explanation, no markdown code fences. Example:\n{\n  \"certification_recommendations\": [\n    {\n      \"career\": \"Data Analyst\",\n      \"recommendations\": [\n        {\n          \"skill\": \"SQL\",\n          \"certification\": \"Google Data Analytics - SQL for Data Analysis\",\n          \"provider\": \"Coursera\",\n          \"url\": \"https://coursera.org/professional-certificates/google-data-analytics\",\n          \"source\": \"database\"\n        }\n      ]\n    }\n  ]\n}\n\nadd a different schema for how much token you used",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2576,
+        512
+      ],
+      "id": "bcd5b9f3-bb1e-4d05-aa8a-ce603c7256bc",
+      "name": "Recommend Certification"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2576,
+        704
+      ],
+      "id": "35ce81ae-70d0-434f-9020-e1096604d23c",
+      "name": "Certification Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a career roadmap planner. Using the candidate's recommended careers, skill gap analysis, and certification recommendations below, generate a complete, structured career roadmap with phased timelines (e.g. 0-3 Months, 3-6 Months, 6-12 Months) to help the candidate advance into their top recommended career.\n\nGap analysis:\n{{ $('Gap Analysis').item.json.output }}\n\nCertification recommendations:\n{{ $json.output }}\n\nRespond with JSON only, no explanation, no markdown code fences, following this structure exactly:\n{\n  \"career_roadmap\": {\n    \"target_career\": \"Data Analyst\",\n    \"phases\": [\n      {\n        \"phase\": \"0-3 Months\",\n        \"goals\": [\"Learn SQL fundamentals\", \"Build a data visualization portfolio project\"],\n        \"certifications\": [\"Google Data Analytics - SQL for Data Analysis\"],\n        \"milestones\": [\"Complete SQL certification\", \"Publish 1 portfolio project\"]\n      },\n      {\n        \"phase\": \"3-6 Months\",\n        \"goals\": [\"\"],\n        \"certifications\": [\"\"],\n        \"milestones\": [\"\"]\n      },\n      {\n        \"phase\": \"6-12 Months\",\n        \"goals\": [\"\"],\n        \"certifications\": [\"\"],\n        \"milestones\": [\"\"]\n      }\n    ],\n    \"summary\": \"Short overall summary of the roadmap and expected outcome\"\n  }\n}\n\nadd a different schema for how much token you used",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2864,
+        512
+      ],
+      "id": "7cbcc0d4-d7eb-49bf-af60-a88b2c0a3958",
+      "name": "Career Roadmap Generator"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2880,
+        720
+      ],
+      "id": "3f8b2380-41f3-4eb3-be85-52d14628c8c1",
+      "name": "Roadmap Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1856,
+        720
+      ],
+      "id": "69cc2570-9117-4d49-9c5c-82bc09acebe7",
+      "name": "Career Path Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## How much token does each agent use????",
+        "height": 432,
+        "width": 1760,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1840,
+        928
+      ],
+      "typeVersion": 1,
+      "id": "ed077867-79bf-47bc-88ce-79570b95379b",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a91c86ae-6912-4643-8007-f70a9eab82d7",
+              "name": "Token Usage",
+              "value": "={{ $json.token_usage.total_tokens }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2160,
+        976
+      ],
+      "id": "de315249-6e1f-47fa-a379-b1e2a63b5d5a",
+      "name": "AICareerPath Token"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Get the raw text string from the AI Agent output\nlet rawText = $json.output || \"\";\n\n// 2. Clean out the ```json and ``` markdown backticks\nlet cleanText = rawText.replace(/^```json\\s*/i, \"\").replace(/\\s*```$/, \"\").trim();\n\n// 3. Parse the clean string into real JSON\nconst parsedOutput = JSON.parse(cleanText);\n\n// 4. Return ONLY the token_usage object\nreturn {\n  token_usage: parsedOutput.token_usage\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        976
+      ],
+      "id": "c8d3e520-745b-4dab-ac52-40f483bb4d05",
+      "name": "Take Token Usage Only"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b00d2b71-0f4d-4b3d-a9ee-0bd4fad07473",
+              "name": "token_usage.total_tokens",
+              "value": "={{ $json.token_usage.total_tokens }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2608,
+        976
+      ],
+      "id": "4c0c5c6a-dbe2-4f71-97df-dbc2cdbf5d93",
+      "name": "AI Gap Token"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a5fe7fd3-251b-4b64-8872-106e27ab253e",
+              "name": "token_usage.total_tokens",
+              "value": "={{ $json.token_usage.total_tokens }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3024,
+        976
+      ],
+      "id": "90ee511e-429c-498f-b109-1f0e9677d03d",
+      "name": "AI Certi Recommendation Token"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Get the raw text string from the AI Agent output\nlet rawText = $json.output || \"\";\n\n// 2. Clean out the ```json and ``` markdown backticks\nlet cleanText = rawText.replace(/^```json\\s*/i, \"\").replace(/\\s*```$/, \"\").trim();\n\n// 3. Parse the clean string into real JSON\nconst parsedOutput = JSON.parse(cleanText);\n\n// 4. Return ONLY the token_usage object\nreturn {\n  token_usage: parsedOutput.token_usage\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        976
+      ],
+      "id": "690b1e74-a358-4742-bac1-d3e1f35e2489",
+      "name": "Taken Token Usage Only"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the raw text string from the AI Agent output\nlet rawText = $json.output || \"\";\n\n// 2. Clean out the ```json and ``` markdown backticks\nlet cleanText = rawText.replace(/^```json\\s*/i, \"\").replace(/\\s*```$/, \"\").trim();\n\n// 3. Parse the clean string into real JSON\nconst parsedOutput = JSON.parse(cleanText);\n\n// 4. Return ONLY the token_usage object\nreturn {\n  token_usage: parsedOutput.token_usage\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        976
+      ],
+      "id": "6b3d191d-babb-46b7-b084-51a065e0b7b3",
+      "name": "Taken Token Usage Only1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the raw text string from the AI Agent output\nlet rawText = $json.output || \"\";\n\n// 2. Clean out the ```json and ``` markdown backticks\nlet cleanText = rawText.replace(/^```json\\s*/i, \"\").replace(/\\s*```$/, \"\").trim();\n\n// 3. Parse the clean string into real JSON\nconst parsedOutput = JSON.parse(cleanText);\n\n// 4. Return ONLY the token_usage object\nreturn {\n  token_usage: parsedOutput.token_usage\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3216,
+        976
+      ],
+      "id": "6c398f5a-9df1-4178-9040-548bd0ad0b03",
+      "name": "Taken Token Usage Only2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f988b031-6db8-41d7-9c32-0e1effbfd56e",
+              "name": "token_usage.total_tokens",
+              "value": "={{ $json.token_usage.total_tokens }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3424,
+        976
+      ],
+      "id": "f9a3dd3c-e83b-49fa-8adf-f46f0633b4ab",
+      "name": "AI RoadMap Generator Token"
+    },
+    {
+      "parameters": {
+        "content": "### Tambah MySQL",
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2000,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "4b2f1310-64cb-4f5a-9763-e4084fd89587",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "### Tambah MySQL",
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2560,
+        256
+      ],
+      "typeVersion": 1,
+      "id": "3a232cc6-af3b-4ec4-aa77-64ec37a77329",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b93b3ba4-42d7-4899-af56-4b910378919b",
+              "name": "Total Token",
+              "value": "={{ Number($('AICareerPath Token').first()?.json?.['Token Usage'] ?? 0) + Number($('AI Gap Token').first()?.json?.token_usage?.total_tokens ?? 0) + Number($('AI Certi Recommendation Token').first()?.json?.token_usage?.total_tokens ?? 0) + Number($('AI RoadMap Generator Token').first()?.json?.token_usage?.total_tokens ?? 0) }}\n",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2464,
+        1200
+      ],
+      "id": "f1630511-e2d8-4966-8bdd-6d57c0988aba",
+      "name": "4&5 Total Token"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "45-careerpath-skillgap",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1520,
+        704
+      ],
+      "id": "2f01b702-bbfd-4963-bf7d-755ea60a3f1e",
+      "name": "Webhook",
+      "webhookId": "8e83bb50-a3af-4828-a602-495e4138f2af"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        3232,
+        512
+      ],
+      "id": "184a4ff3-f6c5-40d5-b497-a97e3b19b58a",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2704,
+        1200
+      ],
+      "id": "2e3bd5c0-1714-464e-883f-c6141f8a5904",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1520,
+        864
+      ],
+      "id": "c92f8042-0793-41c6-ab23-76a918d95678",
+      "name": "Execute Workflow"
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.mySqlTool",
+      "typeVersion": 2.5,
+      "position": [
+        2144,
+        720
+      ],
+      "id": "ec3468c0-2463-441b-87c9-f3dd8da4a00e",
+      "name": "Insert rows in a table in MySQL",
+      "credentials": {
+        "mySql": {
+          "id": "70JgGBGTe9WM24aS",
+          "name": "MySQL account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "type": "n8n-nodes-base.mySqlTool",
+      "typeVersion": 2.5,
+      "position": [
+        2736,
+        720
+      ],
+      "id": "da81a8db-50f8-4e4c-bdac-336f22cc5fff",
+      "name": "Insert rows in a table in MySQL1",
+      "credentials": {
+        "mySql": {
+          "id": "70JgGBGTe9WM24aS",
+          "name": "MySQL account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "When chat message received": [
+      {
+        "json": {
+          "sessionId": "9da4a58024f944ee97d808de08d607e4",
+          "action": "sendMessage",
+          "chatInput": "You are a senior career advisor. Given this candidate profile: Andy, Age 58, Skills: python, Experience 2 years as python developer. Determine: the top 5 career paths, confidence score and reasons. Output JSON only. Example: {\\\\n \\\\\\\"recommended_careers\\\\\\\":[\\\\n  {\\\\n   \\\\\\\"career\\\\\\\":\\\\\\\"Data Analyst\\\\\\\",\\\\n   \\\\\\\"confidence\\\\\\\":98\\\\n  },\\\\n  {\\\\n   \\\\\\\"career\\\\\\\":\\\\\\\"Business Intelligence Analyst\\\\\\\",\\\\n   \\\\\\\"confidence\\\\\\\":92\\\\n  },\\\\n  {\\\\n   \\\\\\\"career\\\\\\\":\\\\\\\"Data Engineer\\\\\\\",\\\\n   \\\\\\\"confidence\\\\\\\":78\\\\n  }\\\\n ]\\\\n}\\\". add a different schema for how much token used"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Career Path Classification": [
+      {
+        "json": {
+          "output": "```json\n{\n  \"recommended_careers\": [\n    {\n      \"career\": \"Data Analyst\",\n      \"confidence\": 90\n    },\n    {\n      \"career\": \"Business Intelligence Analyst\",\n      \"confidence\": 85\n    },\n    {\n      \"career\": \"Python Developer\",\n      \"confidence\": 80\n    },\n    {\n      \"career\": \"Automation Engineer\",\n      \"confidence\": 75\n    },\n    {\n      \"career\": \"Machine Learning Engineer\",\n      \"confidence\": 70\n    }\n  ],\n  \"token_usage\": {\n    \"total_tokens\": 95,\n    \"descriptive_schema\": \"The total tokens used in generating the recommendations and structure.\"\n  }\n}\n```"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Take Token Usage Only": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 95,
+            "descriptive_schema": "The total tokens used in generating the recommendations and structure."
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Gap Analysis": [
+      {
+        "json": {
+          "output": "{\n  \"gap_analysis\": [\n    {\n      \"career\": \"Data Analyst\",\n      \"required_skills\": [\"SQL\", \"Python\", \"Excel\", \"Data Visualization\", \"Statistics\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"SQL\", \"priority\": \"High\"},\n        {\"skill\": \"Excel\", \"priority\": \"High\"},\n        {\"skill\": \"Data Visualization\", \"priority\": \"Medium\"},\n        {\"skill\": \"Statistics\", \"priority\": \"Medium\"}\n      ]\n    },\n    {\n      \"career\": \"Business Intelligence Analyst\",\n      \"required_skills\": [\"SQL\", \"Data Visualization\", \"Data Warehousing\", \"Business Acumen\", \"ETL Tools\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"SQL\", \"priority\": \"High\"},\n        {\"skill\": \"Data Visualization\", \"priority\": \"High\"},\n        {\"skill\": \"Data Warehousing\", \"priority\": \"Medium\"},\n        {\"skill\": \"Business Acumen\", \"priority\": \"Medium\"},\n        {\"skill\": \"ETL Tools\", \"priority\": \"Low\"}\n      ]\n    },\n    {\n      \"career\": \"Python Developer\",\n      \"required_skills\": [\"Python\", \"Web Development\", \"APIs\", \"Version Control\", \"Testing\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"Web Development\", \"priority\": \"High\"},\n        {\"skill\": \"APIs\", \"priority\": \"Medium\"},\n        {\"skill\": \"Version Control\", \"priority\": \"Medium\"},\n        {\"skill\": \"Testing\", \"priority\": \"Low\"}\n      ]\n    },\n    {\n      \"career\": \"Automation Engineer\",\n      \"required_skills\": [\"Scripting\", \"Automation Tools\", \"CI/CD\", \"Testing\", \"Problem-Solving\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"Scripting\", \"priority\": \"High\"},\n        {\"skill\": \"Automation Tools\", \"priority\": \"High\"},\n        {\"skill\": \"CI/CD\", \"priority\": \"Medium\"},\n        {\"skill\": \"Testing\", \"priority\": \"Medium\"},\n        {\"skill\": \"Problem-Solving\", \"priority\": \"Low\"}\n      ]\n    },\n    {\n      \"career\": \"Machine Learning Engineer\",\n      \"required_skills\": [\"Python\", \"Machine Learning Algorithms\", \"Data Preprocessing\", \"Statistics\", \"Model Evaluation\"],\n      \"existing_skills\": [\"Python\"],\n      \"missing_skills\": [\n        {\"skill\": \"Machine Learning Algorithms\", \"priority\": \"High\"},\n        {\"skill\": \"Data Preprocessing\", \"priority\": \"High\"},\n        {\"skill\": \"Statistics\", \"priority\": \"Medium\"},\n        {\"skill\": \"Model Evaluation\", \"priority\": \"Medium\"}\n      ]\n    }\n  ],\n  \"token_usage\": {\n    \"total_tokens\": 197,\n    \"descriptive_schema\": \"The total tokens used in generating the gap analysis.\"\n  }\n}"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Recommend Certification": [
+      {
+        "json": {
+          "output": "{\n  \"certification_recommendations\": [\n    {\n      \"career\": \"Data Analyst\",\n      \"recommendations\": [\n        {\n          \"skill\": \"SQL\",\n          \"certification\": \"MySQL for Data Analysis\",\n          \"provider\": \"MySQL\",\n          \"url\": \"https://www.mysql.com/training/certification/\",\n          \"source\": \"database\"\n        },\n        {\n          \"skill\": \"Excel\",\n          \"certification\": \"Excel Skills for Business Specialization\",\n          \"provider\": \"Coursera\",\n          \"url\": \"https://www.coursera.org/specializations/excel\",\n          \"source\": \"external\"\n        }\n      ]\n    },\n    {\n      \"career\": \"Business Intelligence Analyst\",\n      \"recommendations\": [\n        {\n          \"skill\": \"SQL\",\n          \"certification\": \"MySQL for Data Analysis\",\n          \"provider\": \"MySQL\",\n          \"url\": \"https://www.mysql.com/training/certification/\",\n          \"source\": \"database\"\n        },\n        {\n          \"skill\": \"Data Visualization\",\n          \"certification\": \"Data Visualization with Tableau\",\n          \"provider\": \"Coursera\",\n          \"url\": \"https://www.coursera.org/learn/data-visualization-tableau\",\n          \"source\": \"external\"\n        }\n      ]\n    },\n    {\n      \"career\": \"Python Developer\",\n      \"recommendations\": [\n        {\n          \"skill\": \"Web Development\",\n          \"certification\": \"Python and Django Full Stack Web Developer Bootcamp\",\n          \"provider\": \"Udemy\",\n          \"url\": \"https://www.udemy.com/course/python-and-django-full-stack-web-developer-bootcamp/\",\n          \"source\": \"external\"\n        }\n      ]\n    },\n    {\n      \"career\": \"Automation Engineer\",\n      \"recommendations\": [\n        {\n          \"skill\": \"Scripting\",\n          \"certification\": \"Automate the Boring Stuff with Python Programming\",\n          \"provider\": \"Coursera\",\n          \"url\": \"https://www.coursera.org/learn/automate\",\n          \"source\": \"external\"\n        },\n        {\n          \"skill\": \"Automation Tools\",\n          \"certification\": \"Introduction to Automation with Python\",\n          \"provider\": \"Codecademy\",\n          \"url\": \"https://www.codecademy.com/learn/learn-python-3\",\n          \"source\": \"external\"\n        }\n      ]\n    },\n    {\n      \"career\": \"Machine Learning Engineer\",\n      \"recommendations\": [\n        {\n          \"skill\": \"Machine Learning Algorithms\",\n          \"certification\": \"Machine Learning by Andrew Ng\",\n          \"provider\": \"Coursera\",\n          \"url\": \"https://www.coursera.org/learn/machine-learning\",\n          \"source\": \"external\"\n        },\n        {\n          \"skill\": \"Data Preprocessing\",\n          \"certification\": \"Data Science and Machine Learning Bootcamp with R\",\n          \"provider\": \"Udemy\",\n          \"url\": \"https://www.udemy.com/course/data-science-and-machine-learning-bootcamp-with-r/\",\n          \"source\": \"external\"\n        }\n      ]\n    }\n  ],\n  \"token_usage\": {\n    \"total_tokens\": 196,\n    \"descriptive_schema\": \"Total tokens used in generating the certification recommendations.\"\n  }\n}"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Career Roadmap Generator": [
+      {
+        "json": {
+          "output": "{\n  \"career_roadmap\": {\n    \"target_career\": \"Data Analyst\",\n    \"phases\": [\n      {\n        \"phase\": \"0-3 Months\",\n        \"goals\": [\"Learn SQL fundamentals\", \"Complete Excel Skills for Business Specialization\"],\n        \"certifications\": [\"MySQL for Data Analysis\", \"Excel Skills for Business Specialization\"],\n        \"milestones\": [\"Complete SQL certification\", \"Complete Excel certification\", \"Build a data visualization portfolio project\"]\n      },\n      {\n        \"phase\": \"3-6 Months\",\n        \"goals\": [\"Develop data visualization skills using Tableau\"],\n        \"certifications\": [\"Data Visualization with Tableau\"],\n        \"milestones\": [\"Complete Tableau certification\", \"Create at least 2 data visualization projects for portfolio\"]\n      },\n      {\n        \"phase\": \"6-12 Months\",\n        \"goals\": [\"Apply for Data Analyst roles\", \"Prepare for job interviews\"],\n        \"certifications\": [\"\"],\n        \"milestones\": [\"Apply to at least 10 jobs\", \"Conduct 5 mock interviews\"]\n      }\n    ],\n    \"summary\": \"This roadmap outlines the steps to transition into a Data Analyst role by focusing on essential skill development and obtaining recognized certifications. The expected outcome is readiness to apply for Data Analyst positions within 12 months.\"\n  },\n  \"token_usage\": {\n    \"total_tokens\": 181,\n    \"descriptive_schema\": \"Total tokens used in generating the career roadmap.\"\n  }\n}"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "AI Certi Recommendation Token": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 196
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "AICareerPath Token": [
+      {
+        "json": {
+          "Token Usage": 95
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "AI Gap Token": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 197
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Taken Token Usage Only": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 197,
+            "descriptive_schema": "The total tokens used in generating the gap analysis."
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Taken Token Usage Only1": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 196,
+            "descriptive_schema": "Total tokens used in generating the certification recommendations."
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Taken Token Usage Only2": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 181,
+            "descriptive_schema": "Total tokens used in generating the career roadmap."
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "AI RoadMap Generator Token": [
+      {
+        "json": {
+          "token_usage": {
+            "total_tokens": 181
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Career Path Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Career Path Classification",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Career Path Classification": {
+      "main": [
+        [
+          {
+            "node": "Gap Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Take Token Usage Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gap Analysis Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gap Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gap Analysis": {
+      "main": [
+        [
+          {
+            "node": "Recommend Certification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Taken Token Usage Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Certification Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Recommend Certification",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recommend Certification": {
+      "main": [
+        [
+          {
+            "node": "Career Roadmap Generator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Taken Token Usage Only1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roadmap Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Career Roadmap Generator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Career Path Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Career Path Classification",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AICareerPath Token": {
+      "main": [
+        [
+          {
+            "node": "4&5 Total Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Take Token Usage Only": {
+      "main": [
+        [
+          {
+            "node": "AICareerPath Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Gap Token": {
+      "main": [
+        [
+          {
+            "node": "4&5 Total Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Career Roadmap Generator": {
+      "main": [
+        [
+          {
+            "node": "Taken Token Usage Only2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Certi Recommendation Token": {
+      "main": [
+        [
+          {
+            "node": "4&5 Total Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Taken Token Usage Only": {
+      "main": [
+        [
+          {
+            "node": "AI Gap Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Taken Token Usage Only1": {
+      "main": [
+        [
+          {
+            "node": "AI Certi Recommendation Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Taken Token Usage Only2": {
+      "main": [
+        [
+          {
+            "node": "AI RoadMap Generator Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI RoadMap Generator Token": {
+      "main": [
+        [
+          {
+            "node": "4&5 Total Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "4&5 Total Token": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table in MySQL": {
+      "ai_tool": [
+        [
+          {
+            "node": "Career Path Classification",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table in MySQL1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Recommend Certification",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "06123840-72ee-4fc6-8154-f015ffb5dd0d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"
+  },
+  "id": "JRsBFds2qkHJBN3q",
+  "tags": []
+}
