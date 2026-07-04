@@ -5,36 +5,15 @@ from menu import menu_with_redirect
 from pathlib import Path
 import plotly.express as px
 import re
+from dotenv import load_dotenv
+import pymysql
+import os
 
 # Page configuration
 st.set_page_config(page_title="FinPRO-JOB - Dashboard", layout="wide")
 
 # Load menu
 menu_with_redirect()
-
-# Load N8N Webhook URL
-n8n_hotdemand_url = "https://n8n-student.purwadhika.com/webhook/7-market-hotdemand"
-n8n_gaji_url = "https://n8n-student.purwadhika.com/webhook/7-market-distribusigaji"
-
-def fetch_n8n_hotdemand_data():
-    response = requests.post(n8n_hotdemand_url)
-    if response.status_code == 200:
-        data1 = response.json()
-        return pd.DataFrame(data1)
-    else:
-        st.error("Failed to fetch data from n8n")
-        return pd.DataFrame()
-df1 = fetch_n8n_hotdemand_data()
-    
-def fetch_n8n_gaji_data():
-    response = requests.post(n8n_gaji_url)
-    if response.status_code == 200:
-        data2 = response.json()
-        return pd.DataFrame(data2)
-    else:
-        st.error("Failed to fetch data from n8n")
-        return pd.DataFrame()
-df2 = fetch_n8n_gaji_data()
 
 # Loading CSS
 def load_css():
@@ -57,13 +36,42 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-## Nanti ini dihapus ganti SQL atau ga usah?
-base_dir = Path(__file__).resolve().parent.parent
-data_path = base_dir / "dataset" / "jobs.jsonl"
-df = pd.read_json(data_path, lines=True)
+## connect ke SQL
+load_dotenv()
+def get_connection(timeout=10):
+    try:
+        connection = pymysql.connect(
+        charset="utf8mb4",
+        connect_timeout=timeout,
+        cursorclass=pymysql.cursors.DictCursor,
+        db= os.environ.get("MYSQL_DATABASE"),
+        host= os.environ.get("MYSQL_HOST"),
+        password= os.environ.get("MYSQL_PASSWORD"),
+        read_timeout=timeout,
+        port= 25615,
+        user= os.environ.get("MYSQL_USER"),
+        write_timeout=timeout,)
+        return connection
 
-### HOT DEMAND SKILLS
-skill_counts = (df["job_title"].value_counts().head(7).reset_index())
+    except Exception as e:
+        print(f"[SQL] Connection failed: {e}")
+
+conn = get_connection()
+if conn:
+  print("SQL is Connected")
+cursor = conn.cursor()
+
+## fetch hot demand
+query = """SELECT job_title AS skill, COUNT(*) AS demand
+FROM jobs
+GROUP BY job_title
+ORDER BY demand DESC
+LIMIT 7;"""
+cursor.execute(query)
+rows = cursor.fetchall()
+
+## HOT DEMAND SKILLS
+skill_counts = pd.DataFrame(rows).copy()
 skill_counts.columns = ["skill", "demand"]
 
 fig = px.bar(skill_counts.sort_values("demand"),
@@ -83,22 +91,18 @@ st.plotly_chart(fig, use_container_width=True)
 st.divider()
 
 ### DISTRIBUSI GAJI RATA-RATA
-# nanti dihapus diganti sama SQL
-salary_df = df[df["salary"].notna()].copy()
-salary_df = salary_df[salary_df["salary"] != "None"]
+## fetch distribusi gaji
+query = """SELECT job_title, salary_max
+FROM jobs
+WHERE salary_max IS NOT NULL
+ORDER BY salary_max DESC
+LIMIT 4;"""
+cursor.execute(query)
+rows = cursor.fetchall()
 
-def extract_salary(text):
-    nums = re.findall(r"\d[\d.,]*", str(text))
-    if len(nums) == 0:
-        return None
-    value = nums[0].replace(".", "").replace(",", "")
-
-    try:
-        return int(value)
-    except:
-        return None
-
-salary_df["salary_num"] = salary_df["salary"].apply(extract_salary)
+salary_df = pd.DataFrame(rows).copy()
+salary_df = salary_df[salary_df["salary_max"] != "None"]
+salary_df["salary_num"] = salary_df["salary_max"]
 salary_df = (salary_df.dropna(subset=["salary_num"]).sort_values("salary_num", ascending=False).head(4))
 
 st.write("💰 DISTRIBUSI GAJI RATA-RATA PER BIDANG (FR-7.02)")
@@ -117,8 +121,8 @@ st.markdown(f"""<div class="salary-info">💡 Posisi dengan gaji tertinggi adala
 st.divider()
 
 ### Table Demand
-top6 = (df["job_title"].value_counts().head(6).reset_index())
-top6.columns = ["Skill", "Demand"]
+top6 = skill_counts.head(6).copy()
+top6.columns = ["skill", "demand"]
 
 def status(x):
     if x >= 20:
@@ -127,5 +131,5 @@ def status(x):
         return "Sedang"
     else:
         return "Rendah"
-top6["Status"] = top6["Demand"].apply(status)
+top6["Status"] = top6["demand"].apply(status)
 st.dataframe(top6)
