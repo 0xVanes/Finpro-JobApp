@@ -48,7 +48,7 @@ def get_connection(timeout=10):
         host= os.environ.get("MYSQL_HOST"),
         password= os.environ.get("MYSQL_PASSWORD"),
         read_timeout=timeout,
-        port= 25615,
+        port= int(os.getenv("MYSQL_PORT")),
         user= os.environ.get("MYSQL_USER"),
         write_timeout=timeout,)
         return connection

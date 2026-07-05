@@ -1,4 +1,6 @@
 import streamlit as st
+import requests
+from dotenv import find_dotenv
 from menu import menu_with_redirect
 
 from utils import (
@@ -139,3 +141,122 @@ for rank, rec in enumerate(recommendations, start=1):
             unsafe_allow_html=True,
         )
     st.write("")
+
+## --------------
+import os
+find_dotenv()
+N8N_URL = os.environ.get("CV_WEBHOOK_URL")
+response = requests.post(N8N_URL, json={})
+
+
+col1, col2, col3 = st.columns(3)
+# ambil data dari CV no,3
+## Webhook CV
+find_dotenv()
+roadmap_url = os.environ.get("CV_WEBHOOK_URL")
+response = requests.post(roadmap_url, json={})
+if response.status_code != 200:
+    st.error("Failed to connect to n8n")
+    st.stop()
+data = response.json()
+
+candidate_profile = data["candidate_profile"]
+target = candidate_profile["current_role"]
+target= candidate_profile["current_role"]
+with col1:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">📊</div>
+    <h3 class="career-title">Job Exp</h3>
+    <div class="career-job">{target}</div>
+</div>""", unsafe_allow_html=True)
+
+exp = candidate_profile["experience_years"]
+if exp <= 2:
+    level = "Junior"
+elif exp <= 5:
+    level = "Mid-Level"
+else:
+    level = "Senior"
+## 0-2 Junior, 3-5 Mid, 6+ Senior   
+with col2:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">🎯</div>
+    <h3 class="career-title">Job Level</h3>
+    <div class="career-job">{level}</div>
+</div>""", unsafe_allow_html=True)
+
+career_roadmap = data["career_roadmap"]
+phases = career_roadmap["phases"]
+phase_names = " → ".join([p["phase"] for p in phases])
+with col3:
+    st.markdown(f"""<div class="career-card">
+    <div class="career-icon">📈</div>
+    <h3 class="career-title">3 tahap</h3>
+    <div class="career-job">{phase_names}</div>
+</div>""", unsafe_allow_html=True)
+
+## ISI DARI Hasil LLM
+st.markdown(f"""<div class="salary-info">💡 Jalur Karir menuju: {career_roadmap["target_career"]} </div>""", unsafe_allow_html=True)
+
+
+## Peta Jalur Karir (FR-5.01)
+st.write("PETA JALUR KARIR (FR-5.01)")
+response = requests.post(N8N_URL, json={})
+if response.status_code != 200:
+    st.error("Failed to connect to n8n")
+    st.stop()
+
+data = response.json()
+gap_data = data["gap_analysis"]["careers"]
+certifications = data["certifications"]["recommendations"]
+
+cols = st.columns(min(3, len(gap_data)))
+
+for i, item in enumerate(gap_data[:3]):
+
+    gap_html = ""
+
+    for skill in item["missing_skills"]:
+        gap_html += f"""
+        <span class="skill-pill">
+            {skill["skill"]} ({skill["priority"]})
+        </span>
+        """
+
+    existing_html = ""
+
+    for skill in item["existing_skills"]:
+        existing_html += f"""
+        <span class="skill-pill">{skill}</span>
+        """
+
+    with cols[i]:
+        st.markdown(f"""
+        <div class="skill-card">
+            <div class="skill-badge">{item["career"]}</div>
+            <div class="skill-count">{len(item["missing_skills"])} Skill Gaps</div>
+
+            <div class="skill-gap-title">GAP (FR-5.02)</div>
+            <div>{gap_html}</div>
+        </div>""", unsafe_allow_html=True)
+
+## 📚 LINK BELAJAR & SERTIFIKASI (FR-5.04)
+for rec in certifications:
+    links_html = ""
+    for course in rec["courses"]:
+        badge = "🆓" if course["free"] else "💰"
+        links_html += f"""
+        <a href="{course['url']}"
+           target="_blank"
+           class="learn-pill">
+           {badge} {course['provider']}
+        </a>"""
+    st.markdown(f"""
+    <div class="learning-card">
+        <div class="learning-header">
+            <h4>{rec["skill"]}</h4>
+            <div class="priority-pill">Skill Gap</div>
+        </div>
+        <div class="learning-links">{links_html}</div>
+    </div>
+    """, unsafe_allow_html=True)

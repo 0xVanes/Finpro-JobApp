@@ -29,8 +29,8 @@ def authenticated_menu():
     st.sidebar.page_link("pages/1job_chat.py", label="💬 Job Chat")
     st.sidebar.page_link("pages/2smart_search.py", label="🔍 Smart Search")
     st.sidebar.page_link("pages/3cv_matcher.py", label="📄 CV Matcher")
-    st.sidebar.page_link("pages/4career_path.py", label="🛤️ Career Path")
-    st.sidebar.page_link("pages/5skill_gap.py", label="🎯 Skill Gap")
+    # st.sidebar.page_link("pages/4career_path.py", label="🛤️ Career Path")
+    # st.sidebar.page_link("pages/5skill_gap.py", label="🎯 Skill Gap")
     st.sidebar.page_link("pages/6interview.py", label="🎤 Interview")
     st.sidebar.page_link("pages/7market.py", label="📊 Market")
     

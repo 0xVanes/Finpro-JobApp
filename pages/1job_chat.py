@@ -1,7 +1,7 @@
 import streamlit as st
 from menu import menu_with_redirect
 
-from utils import call_n8n, job_card, show_error, TIMEOUT_CHAT, init_session_state
+from utils import call_n8n, job_card, show_error, TIMEOUT_CHAT
 
 # Page configuration
 st.set_page_config(page_title="FinPRO-JOB - Job Chat", layout="wide")
@@ -16,8 +16,6 @@ def load_css():
         css = f.read()
     st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 load_css()
-
-init_session_state()
 
 ## ---------- FRONTEND STARTS HERE
 st.markdown("""
@@ -34,6 +32,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # FR-1.02: Tampilkan riwayat percakapan sesi ini
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 for message in st.session_state.chat_history:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
