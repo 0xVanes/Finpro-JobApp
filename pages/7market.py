@@ -62,7 +62,7 @@ if conn:
 cursor = conn.cursor()
 
 ## fetch hot demand
-query = """SELECT job_title AS skill, COUNT(*) AS demand
+query = """SELECT job_title AS skill, COUNT(*) AS demand, MAX(created_at) AS latest_date
 FROM jobs
 GROUP BY job_title
 ORDER BY demand DESC
@@ -72,7 +72,7 @@ rows = cursor.fetchall()
 
 ## HOT DEMAND SKILLS
 skill_counts = pd.DataFrame(rows).copy()
-skill_counts.columns = ["skill", "demand"]
+skill_counts.columns = ["skill", "demand", "latest_date"]
 
 fig = px.bar(skill_counts.sort_values("demand"),
     x="demand", y="skill", orientation="h", text="demand")
@@ -92,7 +92,7 @@ st.divider()
 
 ### DISTRIBUSI GAJI RATA-RATA
 ## fetch distribusi gaji
-query = """SELECT job_title, salary_max
+query = """SELECT job_title, salary_max, salary_min
 FROM jobs
 WHERE salary_max IS NOT NULL
 ORDER BY salary_max DESC
@@ -101,8 +101,8 @@ cursor.execute(query)
 rows = cursor.fetchall()
 
 salary_df = pd.DataFrame(rows).copy()
-salary_df = salary_df[salary_df["salary_max"] != "None"]
-salary_df["salary_num"] = salary_df["salary_max"]
+salary_df = salary_df[(salary_df["salary_max"]) & (salary_df["salary_min"]) != "None"]
+salary_df["salary_num"] = (salary_df['salary_min'].astype(str) + "-" + salary_df['salary_max'].astype(str))
 salary_df = (salary_df.dropna(subset=["salary_num"]).sort_values("salary_num", ascending=False).head(4))
 
 st.write("💰 DISTRIBUSI GAJI RATA-RATA PER BIDANG (FR-7.02)")
@@ -111,19 +111,16 @@ for i, (_, row) in enumerate(salary_df.iterrows()):
     with cols[i % 2]:
       st.markdown(f"""<div class="salary-card">
     <div class="salary-icon">💻</div>
-    <h3 class="salary-title">Rp {row['salary_num']:,}</h3>
+    <h3 class="salary-title">Rp {row['salary_min']:,} - Rp {row['salary_max']:,}</h3>
     <div class="salary-job">{row['job_title']}</div>
 </div>""", unsafe_allow_html=True)
-
+top = salary_df.iloc[0]
 st.markdown(f"""<div class="salary-info">💡 Posisi dengan gaji tertinggi adalah
-<b>{salary_df.iloc[0]['job_title']}</b> Rp {salary_df.iloc[0]['salary_num']:,}.
-</div>""", unsafe_allow_html=True)
+<b>{top['job_title']}</b> dengan kisaran gaji
+<b>Rp {top['salary_min']:,} - Rp {top['salary_max']:,}</b>.</div>""", unsafe_allow_html=True)
 st.divider()
 
 ### Table Demand
-top6 = skill_counts.head(6).copy()
-top6.columns = ["skill", "demand"]
-
 def status(x):
     if x >= 20:
         return "Tinggi"
@@ -131,5 +128,5 @@ def status(x):
         return "Sedang"
     else:
         return "Rendah"
-top6["Status"] = top6["demand"].apply(status)
-st.dataframe(top6)
+skill_counts["Status"] = skill_counts["demand"].apply(status)
+st.dataframe(skill_counts)

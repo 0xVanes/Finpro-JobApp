@@ -31,7 +31,7 @@ import streamlit as st
 from dotenv import find_dotenv
 find_dotenv()
 N8N_WEBHOOK_URL: str = os.environ.get("N8N_WEBHOOK_URL")
-
+print(N8N_WEBHOOK_URL)
 # Satu logger per modul — tidak pakai print() untuk error internal
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -42,7 +42,7 @@ logging.basicConfig(
 # Timeout (detik) per jenis request sesuai NFR-2
 TIMEOUT_CHAT:  int = 15   # NFR-2.01 RAG chat ≤ 15 s
 TIMEOUT_SQL:   int = 5    # NFR-2.02 SQL filter ≤ 5 s
-TIMEOUT_CV:    int = 30   # NFR-2.03 CV extract ≤ 30 s
+TIMEOUT_CV:    int = 80   # NFR-2.03 CV extract ≤ 30 s
 TIMEOUT_OTHER: int = 20   # Default untuk mode lainnya
 
 # Format file CV yang didukung (NFR-3.02)
@@ -67,11 +67,7 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
         Dict hasil JSON dari N8N, atau ``{"error": str}`` jika gagal.
     """
     try:
-        response = requests.post(
-            N8N_WEBHOOK_URL,
-            json=payload,
-            timeout=timeout,
-        )
+        response = requests.post(N8N_WEBHOOK_URL,json=payload,timeout=timeout,)
         response.raise_for_status()
         return response.json()                          # type: ignore[no-any-return]
 
@@ -79,9 +75,8 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
         logger.warning("N8N timeout setelah %ds — payload mode: %s",
                        timeout, payload.get("mode", "?"))
         return {"error": (
-            f"⏱️ Waktu habis ({timeout}s). "
-            "Server sedang sibuk, silakan coba lagi."
-        )}
+            f"""⏱️ Waktu habis ({timeout}s).
+            Server sedang sibuk, silakan coba lagi.""" + N8N_WEBHOOK_URL)}
 
     except requests.exceptions.ConnectionError:
         logger.error("Tidak dapat menjangkau N8N: %s", N8N_WEBHOOK_URL)
@@ -125,7 +120,7 @@ def extract_cv_text(uploaded_file) -> str:
         Tidak raise — semua exception di-catch dan di-log.
     """
     try:
-        raw_bytes = uploaded_file.read()
+        raw_bytes = uploaded_file.getvalue()
         file_ext = uploaded_file.name.rsplit(".", 1)[-1].lower()
 
         if file_ext == "pdf":
@@ -140,7 +135,7 @@ def extract_cv_text(uploaded_file) -> str:
         logger.error("extract_cv_text gagal: %s", exc)
         return ""
 
-
+## ganti bytesio(binary n8n)
 def _extract_pdf(raw: bytes) -> str:
     """Ekstrak teks dari bytes PDF menggunakan pypdf."""
     try:

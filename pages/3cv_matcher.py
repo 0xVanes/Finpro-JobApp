@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from dotenv import find_dotenv
 from menu import menu_with_redirect
+import json
 
 from utils import (
     call_n8n, section_lbl, show_error,
@@ -77,8 +78,10 @@ with st.spinner("AI mencocokkan profil dengan 473 lowongan..."):
 if "error" in result:
     show_error(result["error"])
     st.stop()
-
 # FR-4.02: Profil kandidat yang terdeteksi
+if "output" in result:
+    result = json.loads(result["output"])
+
 profile = result.get("candidate_profile", {})
 if profile:
     section_lbl("Profil Terdeteksi (FR-4.02)", "👤")
@@ -99,9 +102,8 @@ if profile:
 recommendations = result.get("recommendations", [])[:3]
 
 if not recommendations:
-    st.warning(
-        "Tidak ada rekomendasi yang ditemukan. "
-        "Pastikan CV memuat informasi skill dan pengalaman."
+    st.warning(f"""Tidak ada rekomendasi yang ditemukan.
+        Pastikan CV memuat informasi skill dan pengalaman {parsed}"""
     )
     st.stop()
 
@@ -142,25 +144,9 @@ for rank, rec in enumerate(recommendations, start=1):
         )
     st.write("")
 
-## --------------
-import os
-find_dotenv()
-N8N_URL = os.environ.get("CV_WEBHOOK_URL")
-response = requests.post(N8N_URL, json={})
-
-
+## Career Path
 col1, col2, col3 = st.columns(3)
-# ambil data dari CV no,3
-## Webhook CV
-find_dotenv()
-roadmap_url = os.environ.get("CV_WEBHOOK_URL")
-response = requests.post(roadmap_url, json={})
-if response.status_code != 200:
-    st.error("Failed to connect to n8n")
-    st.stop()
-data = response.json()
-
-candidate_profile = data["candidate_profile"]
+candidate_profile = result["candidate_profile"]
 target = candidate_profile["current_role"]
 target= candidate_profile["current_role"]
 with col1:
@@ -185,7 +171,9 @@ with col2:
     <div class="career-job">{level}</div>
 </div>""", unsafe_allow_html=True)
 
-career_roadmap = data["career_roadmap"]
+career_roadmap = result.get("career_roadmap", {})
+if not career_roadmap:
+    st.warning("Career roadmap not available yet — try again in a moment.")
 phases = career_roadmap["phases"]
 phase_names = " → ".join([p["phase"] for p in phases])
 with col3:
@@ -201,16 +189,10 @@ st.markdown(f"""<div class="salary-info">💡 Jalur Karir menuju: {career_roadma
 
 ## Peta Jalur Karir (FR-5.01)
 st.write("PETA JALUR KARIR (FR-5.01)")
-response = requests.post(N8N_URL, json={})
-if response.status_code != 200:
-    st.error("Failed to connect to n8n")
-    st.stop()
+gap_data = result["gap_analysis"]["careers"]
+certifications = result["certifications"]["recommendations"]
 
-data = response.json()
-gap_data = data["gap_analysis"]["careers"]
-certifications = data["certifications"]["recommendations"]
-
-cols = st.columns(min(3, len(gap_data)))
+cols = st.columns(int(min(3, len(gap_data))))
 
 for i, item in enumerate(gap_data[:3]):
 
@@ -235,7 +217,6 @@ for i, item in enumerate(gap_data[:3]):
         <div class="skill-card">
             <div class="skill-badge">{item["career"]}</div>
             <div class="skill-count">{len(item["missing_skills"])} Skill Gaps</div>
-
             <div class="skill-gap-title">GAP (FR-5.02)</div>
             <div>{gap_html}</div>
         </div>""", unsafe_allow_html=True)
