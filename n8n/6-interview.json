@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "d0d4253f-9010-46e3-b337-06edeacbc5df",
+      "id": "c65d8e74-2322-4c36-a633-c1ef17dfce94",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        0,
-        300
+        -200,
+        360
       ]
     },
     {
@@ -92,13 +92,13 @@
         },
         "options": {}
       },
-      "id": "a534f595-6c94-4225-9aaf-cc53c1f000c8",
+      "id": "fa13e9dd-1b2c-48cf-aad6-c8e2e20f7642",
       "name": "Route by Action",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        240,
-        300
+        40,
+        360
       ]
     },
     {
@@ -107,12 +107,12 @@
         "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
         "options": {}
       },
-      "id": "27810e7e-250c-4af3-b94b-4829cc3f4fe1",
+      "id": "f6c58f0c-d576-403e-a6b8-548f0abb2074",
       "name": "Get Job (start)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        480,
+        300,
         100
       ],
       "credentials": {
@@ -127,15 +127,15 @@
         "promptType": "define",
         "text": "=Lowongan:\nPosisi: {{ $json.job_title }}\nPerusahaan: {{ $json.company_name }}\nDeskripsi:\n{{ $json.job_description }}\n\nCV Kandidat:\n{{ $('Execute Workflow Trigger').item.json.data.cv_text }}",
         "options": {
-          "systemMessage": "Kamu pewawancara profesional untuk lowongan di atas. Buat profil ringkas kandidat dari CV, lalu ajukan SATU pertanyaan wawancara PERTAMA yang relevan dengan lowongan dan latar belakang kandidat (boleh teknis atau HR, mulai dari pembuka wajar). Perkirakan progres (pertanyaan pertama biasanya 10-15).\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence, bentuk persis:\n{\"cv_profile\": {\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]}, \"question\":\"...\",\"category\":\"technical\",\"question_number\":1,\"progress\":12,\"done\":false}"
+          "systemMessage": "Kamu perancang wawancara profesional. Berdasarkan CV kandidat dan deskripsi lowongan, susun rencana wawancara berupa 4-6 POIN INTI (kompetensi/topik) paling penting untuk menilai kandidat pada lowongan ini. Entry-level cukup 4 poin; mid/senior 5-6 poin. Urutkan mulai dari pembuka yang wajar. Buat juga profil ringkas kandidat, lalu pertanyaan PERTAMA untuk poin ke-1 dengan nada hangat dan manusiawi (boleh menyapa nama).\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"cv_profile\":{\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]},\"plan\":[{\"index\":1,\"point\":\"...\",\"category\":\"technical\"}],\"total_points\":5,\"current_point_index\":1,\"question\":\"...\",\"category\":\"technical\"}"
         }
       },
-      "id": "0ebd01d6-7066-451a-933a-8d11f098c82d",
-      "name": "Interviewer Agent (start)",
+      "id": "c36c4e9e-635d-42b8-87c5-c86cd264178c",
+      "name": "Planner Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        720,
+        540,
         100
       ]
     },
@@ -149,12 +149,12 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "c631d713-3c58-46da-b3cb-75e40cceef91",
-      "name": "OpenAI Model (start)",
+      "id": "b2f8ffdc-9c5f-4358-9c6d-f6983ee71865",
+      "name": "Planner Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        720,
+        540,
         260
       ],
       "credentials": {
@@ -166,14 +166,14 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = $input.first().json.output ?? $input.first().json.text ?? '';\nraw = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();\nlet parsed = null;\ntry { parsed = JSON.parse(raw); }\ncatch (e) {\n  const m = raw.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }\n}\nif (!parsed) parsed = { error: '⚠️ Format respons wawancara tidak valid, coba lagi.' };\nreturn [{ json: parsed }];"
+        "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nlet p = parse($input.first().json.output ?? $input.first().json.text ?? '');\nif(!p) p = { error: '⚠️ Gagal menyusun rencana wawancara, coba lagi.' };\nif(p.plan && !p.total_points) p.total_points = p.plan.length;\nif(!p.current_point_index) p.current_point_index = 1;\nreturn [{ json: p }];"
       },
-      "id": "80e7bdea-2af6-4821-a4c6-b24e887d38fa",
-      "name": "Parse Interview (start)",
+      "id": "48b6d70e-93a7-4308-9f3d-2b8448e1882b",
+      "name": "Parse Planner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
+        780,
         100
       ]
     },
@@ -183,13 +183,13 @@
         "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
         "options": {}
       },
-      "id": "e56c0465-ad65-4833-98c0-223e9f180bb4",
+      "id": "e523f649-07cb-4b1e-8735-a5e452e0db99",
       "name": "Get Job (answer)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        480,
-        340
+        300,
+        360
       ],
       "credentials": {
         "mySql": {
@@ -201,18 +201,18 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Lowongan:\nPosisi: {{ $json.job_title }}\nDeskripsi:\n{{ $json.job_description }}\n\nProfil Kandidat:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.cv_profile) }}\n\nRiwayat Tanya-Jawab:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.history) }}",
+        "text": "=Rencana poin inti:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.plan) }}\n\nSedang menilai POIN ke-{{ $('Execute Workflow Trigger').item.json.data.current_point_index }}.\n\nRiwayat Tanya-Jawab:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.history) }}",
         "options": {
-          "systemMessage": "Kamu pewawancara profesional. Lanjutkan wawancara untuk lowongan di atas.\n- Nilai apakah wawancara sudah cukup untuk menilai kandidat terhadap lowongan.\n- Jika BELUM cukup: ajukan SATU pertanyaan berikutnya yang menggali area yang belum diuji (campur teknis dan HR). Set \"done\": false.\n- Jika SUDAH cukup (umumnya setelah 4-7 pertanyaan berkualitas, atau jawaban sudah sangat memadai/sangat kurang): set \"done\": true dan \"question\" kosong.\n- \"progress\": naikkan bertahap, JANGAN pernah turun; beri mendekati 100 HANYA saat \"done\": true.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence, bentuk persis:\n{\"done\":false,\"question\":\"...\",\"category\":\"technical\",\"question_number\":2,\"progress\":45}"
+          "systemMessage": "Kamu penilai wawancara. Nilai apakah POIN INTI yang sedang dibahas SUDAH cukup terjawab oleh kandidat, berdasarkan riwayat tanya-jawab pada poin tersebut (item history punya field point_index). Nilai substansi jawaban, bukan panjangnya. Bersikap wajar: satu-dua jawaban solid sudah cukup.\n\nKembalikan HANYA JSON valid: {\"point_satisfied\": true, \"reason\": \"...\"}"
         }
       },
-      "id": "86ba8e7c-cd4f-4cce-9179-adf6e26ca16b",
-      "name": "Interviewer Agent (answer)",
+      "id": "3e9766a5-c007-4ead-80a8-6f22d224c317",
+      "name": "Monitor Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        720,
-        340
+        540,
+        360
       ]
     },
     {
@@ -225,13 +225,13 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "c9d2ab57-53df-4380-8e5e-471aeb013ba3",
-      "name": "OpenAI Model (answer)",
+      "id": "ceba956b-78f4-48d3-bb43-3729179d1c80",
+      "name": "Monitor Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        720,
-        500
+        540,
+        520
       ],
       "credentials": {
         "openAiApi": {
@@ -242,15 +242,117 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = $input.first().json.output ?? $input.first().json.text ?? '';\nraw = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();\nlet parsed = null;\ntry { parsed = JSON.parse(raw); }\ncatch (e) {\n  const m = raw.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }\n}\nif (!parsed) parsed = { error: '⚠️ Format respons wawancara tidak valid, coba lagi.' };\nreturn [{ json: parsed }];"
+        "jsCode": "const t = $('Execute Workflow Trigger').first().json.data;\nconst mon = $input.first().json;\nconst satisfied = mon.point_satisfied === true;\nconst K = Number(t.total_points) || (t.plan ? t.plan.length : 0);\nlet idx = Number(t.current_point_index) || 1;\nlet qc = Number(t.point_qcount) || 1;\nconst CAP = 5;\nlet done = false;\nif (satisfied || qc >= CAP) { idx = idx + 1; qc = 1; if (idx > K) done = true; }\nelse { qc = qc + 1; }\nconst target = (!done && t.plan && t.plan[idx-1]) ? t.plan[idx-1] : null;\nreturn [{ json: { done, current_point_index: idx, point_qcount: qc,\n  point_satisfied: satisfied, total_points: K, target_point: target } }];"
       },
-      "id": "79d9d566-6389-4c12-a383-bef2ae062bc1",
-      "name": "Parse Interview (answer)",
+      "id": "102f6bca-db11-4dd0-9d7f-d8ac213eccfe",
+      "name": "Decide",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
+        780,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "08a2a01a-c136-4ca0-b308-946384a991e6",
+              "leftValue": "={{ $json.done }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "853dd261-b4db-4fdc-9c61-9898ddb63008",
+      "name": "IF Done",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1180,
         340
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Poin inti yang dituju sekarang:\n{{ JSON.stringify($('Decide').item.json.target_point) }}\n\nDeskripsi lowongan:\n{{ $('Get Job (answer)').item.json.job_description }}\n\nJawaban TERAKHIR kandidat:\n{{ JSON.stringify(($('Execute Workflow Trigger').item.json.data.history).slice(-1)) }}",
+        "options": {
+          "systemMessage": "Kamu pewawancara profesional yang hangat dan manusiawi, BUKAN mesin penembak pertanyaan. Pertama beri TANGGAPAN singkat dan natural atas jawaban TERAKHIR kandidat -- akui hal SPESIFIK yang mereka sebutkan (hindari pujian generik seperti 'bagus'). Lalu ajukan SATU pertanyaan berikutnya untuk poin inti yang dituju. Nada percakapan, Bahasa Indonesia, ringkas dan tidak kaku.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"reaction\":\"...\",\"question\":\"...\",\"category\":\"technical\"}"
+        }
+      },
+      "id": "f228d673-04bb-4a0d-b206-7b33365cb344",
+      "name": "Questioner Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1400,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "16ccc577-61f5-47f3-8b26-3d6d92b70862",
+      "name": "Questioner Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        580
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "qYuDOl5p3ROZbNOy",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nconst q = parse($input.first().json.output ?? $input.first().json.text ?? '') || {};\nconst d = $('Decide').first().json;\nreturn [{ json: { done:false, current_point_index:d.current_point_index,\n  point_qcount:d.point_qcount, point_satisfied:d.point_satisfied,\n  reaction:q.reaction||'', question:q.question||'',\n  category:q.category||(d.target_point?d.target_point.category:'technical') } }];"
+      },
+      "id": "c83afc1c-6763-425f-baf1-72748f9b05bd",
+      "name": "Parse Question",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Decide').first().json;\nreturn [{ json: { done:true, current_point_index:d.current_point_index,\n  total_points:d.total_points } }];"
+      },
+      "id": "83d3f2fc-29f3-4dc7-8a03-cdcba38f24de",
+      "name": "Parse Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        240
       ]
     },
     {
@@ -259,13 +361,13 @@
         "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
         "options": {}
       },
-      "id": "b6b325ef-c932-4904-9659-ec6095322ea2",
+      "id": "0ba82430-215e-4aa2-a814-d7c16eb6b452",
       "name": "Get Job (assess)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        480,
-        580
+        300,
+        640
       ],
       "credentials": {
         "mySql": {
@@ -277,18 +379,18 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Lowongan:\nPosisi: {{ $json.job_title }}\nDeskripsi:\n{{ $json.job_description }}\n\nProfil Kandidat:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.cv_profile) }}\n\nRiwayat Tanya-Jawab:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.history) }}",
+        "text": "=Lowongan:\nPosisi: {{ $json.job_title }}\nDeskripsi:\n{{ $json.job_description }}\n\nProfil Kandidat:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.cv_profile) }}\n\nRencana poin inti:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.plan) }}\n\nTranskrip:\n{{ JSON.stringify($('Execute Workflow Trigger').item.json.data.history) }}",
         "options": {
-          "systemMessage": "Kamu penilai wawancara (hiring assessor) yang objektif untuk lowongan di atas. Nilai kelayakan kandidat berdasarkan jawaban dan kecocokan dengan deskripsi lowongan.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence, bentuk persis:\n{\"verdict\":\"Bisa Diterima\",\"score\":78,\"reasons\":[\"...\"],\"strengths\":[\"...\"],\"improvements\":[\"...\"],\"per_question\":[{\"question\":\"...\",\"feedback\":\"...\",\"score\":8}]}"
+          "systemMessage": "Kamu penilai wawancara (hiring assessor) yang objektif untuk lowongan di atas. Nilai kelayakan kandidat berdasarkan jawaban dan kecocokan dengan deskripsi lowongan serta cakupan tiap poin inti dalam rencana wawancara.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"verdict\":\"Bisa Diterima\",\"score\":78,\"reasons\":[\"...\"],\"strengths\":[\"...\"],\"improvements\":[\"...\"],\"per_question\":[{\"question\":\"...\",\"feedback\":\"...\",\"score\":8}]}"
         }
       },
-      "id": "3f800694-e9e6-4b4f-a497-e52297909eb9",
+      "id": "280a9615-c143-44b7-9480-126579f8c8ba",
       "name": "Assessor Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        720,
-        580
+        540,
+        640
       ]
     },
     {
@@ -301,13 +403,13 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "bbfb28ff-40da-4b11-b3c3-898bcf761e97",
-      "name": "OpenAI Model (assess)",
+      "id": "0efc809e-8c72-449e-9fa2-94fc7672bdd0",
+      "name": "Assessor Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        720,
-        740
+        540,
+        800
       ],
       "credentials": {
         "openAiApi": {
@@ -318,15 +420,15 @@
     },
     {
       "parameters": {
-        "jsCode": "let raw = $input.first().json.output ?? $input.first().json.text ?? '';\nraw = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();\nlet parsed = null;\ntry { parsed = JSON.parse(raw); }\ncatch (e) {\n  const m = raw.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }\n}\nif (!parsed) parsed = { error: '⚠️ Format respons wawancara tidak valid, coba lagi.' };\nreturn [{ json: parsed }];"
+        "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nlet p = parse($input.first().json.output ?? $input.first().json.text ?? '');\nif(!p) p = { error: '⚠️ Format penilaian tidak valid, coba lagi.' };\nreturn [{ json: p }];"
       },
-      "id": "2a047678-5331-4f22-b3c9-13b19397e0d6",
-      "name": "Parse Interview (assess)",
+      "id": "89fd663b-2702-41c6-8e2a-c56e2fb1eb4f",
+      "name": "Parse Assess",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        580
+        780,
+        640
       ]
     }
   ],
@@ -372,29 +474,29 @@
       "main": [
         [
           {
-            "node": "Interviewer Agent (start)",
+            "node": "Planner Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI Model (start)": {
+    "Planner Model": {
       "ai_languageModel": [
         [
           {
-            "node": "Interviewer Agent (start)",
+            "node": "Planner Agent",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Interviewer Agent (start)": {
+    "Planner Agent": {
       "main": [
         [
           {
-            "node": "Parse Interview (start)",
+            "node": "Parse Planner",
             "type": "main",
             "index": 0
           }
@@ -405,29 +507,80 @@
       "main": [
         [
           {
-            "node": "Interviewer Agent (answer)",
+            "node": "Monitor Agent",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI Model (answer)": {
+    "Monitor Model": {
       "ai_languageModel": [
         [
           {
-            "node": "Interviewer Agent (answer)",
+            "node": "Monitor Agent",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Interviewer Agent (answer)": {
+    "Monitor Agent": {
       "main": [
         [
           {
-            "node": "Parse Interview (answer)",
+            "node": "Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide": {
+      "main": [
+        [
+          {
+            "node": "IF Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Done": {
+      "main": [
+        [
+          {
+            "node": "Parse Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Questioner Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Questioner Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Questioner Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Questioner Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Question",
             "type": "main",
             "index": 0
           }
@@ -445,7 +598,7 @@
         ]
       ]
     },
-    "OpenAI Model (assess)": {
+    "Assessor Model": {
       "ai_languageModel": [
         [
           {
@@ -460,7 +613,7 @@
       "main": [
         [
           {
-            "node": "Parse Interview (assess)",
+            "node": "Parse Assess",
             "type": "main",
             "index": 0
           }

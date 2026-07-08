@@ -1,185 +1,145 @@
 # Simulasi Wawancara — Interview Agent (JobPath)
 
 Dokumentasi fitur **Simulasi Wawancara** (`FR-6.01`–`FR-6.05`). Menetapkan kontrak
-antara halaman Streamlit `pages/6interview.py` dan workflow n8n, sehingga kedua sisi
-dapat dikembangkan terpisah selama patuh pada kontrak ini.
+antara halaman Streamlit `pages/6interview.py` dan sub-workflow n8n `6-interview.json`.
 
 ## Prinsip desain
 
-Wawancara bersifat **percakapan bergiliran** (tanya → jawab → tanya lagi → penilaian),
-berbeda dari fitur lain yang satu-request-satu-response. Webhook n8n tetap **stateless**
-(`NFR-1.02`): setiap panggilan adalah HTTP request independen. Karena itu:
+Wawancara adalah **percakapan bergiliran** (tanya → jawab → tanggapi → tanya lagi →
+penilaian). Webhook n8n **stateless** (`NFR-1.02`): setiap panggilan independen. Karena itu:
 
-> **State percakapan hidup di `st.session_state` (Streamlit).** Setiap request ke n8n
-> membawa seluruh riwayat Q&A sejauh ini. n8n tidak menyimpan state — ia menerima
-> "profil CV + lowongan + riwayat" lalu menghasilkan pertanyaan atau penilaian berikutnya.
+> **State percakapan hidup di `st.session_state` (Streamlit).** Setiap request membawa
+> seluruh riwayat + rencana wawancara. n8n tidak menyimpan state.
 
-Fitur ini terikat pada **lowongan nyata** di database (`FR-6.01`): pertanyaan disusun
-berdasarkan `job_description` lowongan yang dipilih **dan** CV pengguna. **Panjang sesi
-ditentukan agen** (bukan jumlah tetap) — agen memutuskan kapan wawancara cukup.
+Fitur terikat pada **lowongan nyata** (`FR-6.01`): pertanyaan disusun dari `job_description`
+lowongan terpilih **dan** CV pengguna.
+
+**Panjang sesi & progress ditentukan STRUKTUR, bukan tebakan agen.** Di awal, *Planner*
+menyusun **K poin inti** (4–6). Progress dihitung deterministik:
+
+```
+progress = 100                              jika semua poin tuntas (done)
+         = (current_point_index − 1) / K × 100   selain itu
+```
+
+Indeks poin hanya bertambah → progress **monotonik** dan pasti mencapai 100%. Ini
+menggantikan pendekatan lama (agen menebak `progress`) yang menyebabkan bar mandek.
+
+## Arsitektur multi-agent (NFR-1.01)
+
+Koordinasi dipegang alur kerja + indeks di Streamlit (deterministik), dengan empat agen di
+sub-workflow `6-interview.json`:
+
+| Agen | Peran |
+|---|---|
+| **Planner** (`start`) | susun rencana K poin inti + profil CV + pertanyaan pertama |
+| **Monitor** (`answer`) | nilai apakah poin saat ini sudah cukup terjawab (`point_satisfied`) |
+| **Questioner** (`answer`) | beri **tanggapan manusiawi** atas jawaban lalu ajukan pertanyaan berikutnya |
+| **Assessor** (`assess`) | verdict akhir, sadar cakupan tiap poin |
+
+Node **Decide** (Code) di antara Monitor dan Questioner menerapkan logika: jika poin puas
+**atau** sudah 5 pertanyaan pada poin itu (cap), maju ke poin berikutnya; bila poin terakhir
+tuntas, `done: true`. Node **IF Done** mengarahkan ke Parse Done atau ke Questioner.
+
+```
+start  → Get Job → Planner → Parse Planner
+answer → Get Job → Monitor → Decide → IF Done ┬ true  → Parse Done
+                                              └ false → Questioner → Parse Question
+assess → Get Job → Assessor → Parse Assess
+```
 
 ## Alur (state machine 3 fase)
 
 ```
-FASE 1 — SETUP
-  1. Upload CV (reuse extract_cv_text di utils.py — FR-4.01, NFR-5.01)
-  2. Ketik kata kunci → pilih 1 lowongan nyata dari hasil pencarian (FR-6.01)
-  [Mulai] → call_n8n(action="start", cv_text, job_id)
-
-FASE 2 — RUNNING (agen mengontrol panjang sesi)
-  Tampilkan pertanyaan → pengguna menjawab teks (FR-6.03)
-  Submit → history.append({question, answer, category})
-  call_n8n(action="answer", cv_profile, job_id, history)
-    - response { done:false, question:... } → tampilkan pertanyaan berikutnya (FR-6.02)
-    - response { done:true }                → agen menganggap cukup → lanjut assess
-
-FASE 3 — DONE
-  call_n8n(action="assess", cv_profile, job_id, history)
-  Tampilkan verdict "Bisa Diterima / Tidak" + alasan (FR-6.04)
-  Tombol Download PDF: transkrip + penilaian (FR-6.05)
+SETUP    upload CV + pilih lowongan nyata → call start
+RUNNING  tampilkan tanggapan+pertanyaan → jawab → call answer (loop sampai done)
+DONE     call assess → verdict + PDF
 ```
 
 ## Kontrak webhook
 
-Semua request memakai webhook yang sama (`job-assistant`) dengan `mode: "interview"`,
-dibedakan oleh field `action`. Konsisten dengan `mode` chat / search / cv_match yang
-sudah ada; cukup menambah satu cabang pada node Switch "Route by Mode" di n8n.
+Semua request `mode: "interview"` pada webhook `job-assistant`, diteruskan Main Workflow ke
+sub-workflow `6-interview.json` (node *Interview Pipeline*, Execute Workflow) dengan payload
+sebagai objek `data`. Dibedakan oleh `action`.
 
 ### 0. Pemilihan lowongan — `mode: "search"` (reuse)
 
-Setup memakai ulang pencarian yang sudah ada untuk menampilkan lowongan nyata.
+Setiap item `jobs` **wajib** menyertakan `job_id` (dipakai menarik `job_description`).
 
-**Syarat kontrak:** setiap item pada `jobs` **wajib** menyertakan `job_id`. Tanpa ini,
-halaman interview tidak dapat mengambil `job_description` lowongan terpilih.
-
-```json
-// request
-{ "mode": "search", "keyword": "Data Analyst", "work_type": null,
-  "city": null, "salary_min": null, "hybrid_only": false }
-
-// response — job_id WAJIB ada di tiap item
-{ "jobs": [
-    { "job_id": "0052b191-...", "job_title": "Data Analyst",
-      "company_name": "PT Vita Shopindo", "location": "Jakarta Barat",
-      "work_type": "Full-time" }
-  ],
-  "top_cities": [ ... ] }
-```
-
-### 1. `action: "start"` — mulai wawancara
-
-Agen membaca CV penuh + `job_description` (ditarik dari `job_id`), lalu mengeluarkan
-pertanyaan pertama. Response mengembalikan `cv_profile` ringkas agar request berikutnya
-tidak perlu mengirim ulang `cv_text` penuh.
+### 1. `action: "start"` — Planner
 
 ```json
 // request
-{ "mode": "interview", "action": "start",
-  "cv_text": "<teks CV hasil ekstraksi>",
-  "job_id": "0052b191-...", "position": "Data Analyst" }
+{ "mode":"interview", "action":"start",
+  "cv_text":"<teks CV>", "job_id":"...", "position":"Data Analyst" }
 
 // response
-{ "cv_profile": { "current_role": "Junior Analyst", "experience_years": 1,
-                  "key_skills": ["SQL", "Excel", "Python"] },
-  "question": "Ceritakan proyek analisis data yang pernah kamu kerjakan.",
-  "category": "technical", "question_number": 1,
-  "progress": 10, "done": false }
+{ "cv_profile": {"current_role":"...","experience_years":2,"key_skills":["..."]},
+  "plan": [ {"index":1,"point":"Pengalaman SQL & query kompleks","category":"technical"}, ... ],
+  "total_points": 5,
+  "current_point_index": 1,
+  "question": "...", "category": "technical" }
 ```
 
-### 2. `action: "answer"` — kirim jawaban, minta giliran berikutnya
+### 2. `action: "answer"` — Monitor → Decide → Questioner
 
-Streamlit mengirim seluruh riwayat Q&A. Agen memutuskan menampilkan pertanyaan
-berikutnya atau mengakhiri wawancara (`done: true`).
+Streamlit mengirim state poin + seluruh riwayat (tiap item punya `point_index`).
 
 ```json
 // request
-{ "mode": "interview", "action": "answer",
-  "job_id": "0052b191-...",
-  "cv_profile": { ... },              // dari response start
-  "history": [
-    { "question": "...", "answer": "...", "category": "technical" }
-  ] }
+{ "mode":"interview", "action":"answer", "job_id":"...",
+  "cv_profile": {...}, "plan": [...], "total_points": 5,
+  "current_point_index": 2, "point_qcount": 1,
+  "history": [ {"question":"...","answer":"...","category":"...","point_index":1}, ... ] }
 
 // response — lanjut
 { "done": false,
-  "question": "Bagaimana kamu menangani data yang tidak lengkap?",
-  "category": "technical", "question_number": 2, "progress": 45 }
+  "current_point_index": 3, "point_qcount": 1, "point_satisfied": true,
+  "reaction": "Menarik, pendekatan imputasinya masuk akal.",
+  "question": "Bagaimana kamu memastikan kualitas data sebelum analisis?",
+  "category": "hr" }
 
-// response — selesai
-{ "done": true, "progress": 100 }
+// response — semua poin tuntas
+{ "done": true, "current_point_index": 6, "total_points": 5 }
 ```
 
-### 3. `action: "assess"` — penilaian akhir (FR-6.04)
+Streamlit memperbarui `current_point_index`/`point_qcount` dari response dan menghitung
+progress dari rumus di atas — **tidak** mempercayai nilai progress dari agen.
 
-Dipanggil setelah agen mengirim `done: true`. Agen menilai transkrip penuh terhadap
-CV dan lowongan.
+### 3. `action: "assess"` — Assessor (FR-6.04)
 
 ```json
 // request
-{ "mode": "interview", "action": "assess",
-  "job_id": "0052b191-...", "cv_profile": { ... },
-  "history": [ { "question": "...", "answer": "...", "category": "..." }, ... ] }
+{ "mode":"interview", "action":"assess", "job_id":"...",
+  "cv_profile": {...}, "plan": [...], "history": [...] }
 
 // response
-{ "verdict": "Bisa Diterima",          // "Bisa Diterima" | "Tidak"
-  "score": 78,                          // 0-100
-  "reasons": [ "Menguasai SQL sesuai kebutuhan lowongan", "..." ],
-  "strengths": [ "Komunikasi jelas", "..." ],
-  "improvements": [ "Perdalam statistik", "..." ],
-  "per_question": [
-    { "question": "...", "feedback": "...", "score": 8 }   // score 0-10
-  ] }
+{ "verdict": "Bisa Diterima", "score": 78,
+  "reasons": [...], "strengths": [...], "improvements": [...],
+  "per_question": [ {"question":"...","feedback":"...","score":8} ] }
 ```
-
-## Progress bar
-
-Karena panjang sesi tidak tetap, persentase progres berasal dari **agen** (field
-`progress`, 0–100) pada response `start` / `answer`. Streamlit menampilkannya dengan
-aturan berikut agar tidak menyesatkan:
-
-- **Monotonik** — tidak pernah mundur: `tampil = max(tampil_lama, progress_agen)`.
-- **Tidak pernah 100% sebelum `done`** — dibatasi maksimal `95` selama berjalan.
-- **Snap ke 100%** begitu `done: true`.
-
-Ringkas: `tampil = min( max(tampil_lama, progress_agen), 95 )` saat berjalan; `100` saat done.
-
-## Arsitektur agen di n8n (NFR-1.01 multi-agent)
-
-Dua agent di dalam cabang `mode == interview`:
-
-1. **Interviewer Agent** — input: `cv_profile` + `job_description` (dari `job_id`) +
-   `history`. Output: satu pertanyaan berikutnya **atau** keputusan `done: true`.
-   Menyertakan `progress` (naik bertahap; mendekati 100 hanya saat akan mengakhiri).
-   Campuran pertanyaan teknis dan HR, menyesuaikan jawaban sebelumnya.
-
-2. **Assessor Agent** — input: transkrip penuh + `cv_profile` + `job_description`.
-   Output: verdict + skor + alasan + catatan per pertanyaan.
-
-Kontrak output kedua agent harus JSON valid. Terapkan parsing toleran seperti pada node
-*Format Search Response* (ekstrak blok `{...}` bila `JSON.parse` langsung gagal) untuk
-menghindari kegagalan format saat LLM menambah teks di luar JSON.
 
 ## State di Streamlit (`st.session_state`)
 
-| Key | Tipe | Guna |
-|---|---|---|
-| `iv_stage` | str | `"setup"` / `"running"` / `"done"` |
-| `iv_cv_text` | str | teks CV hasil ekstraksi (dikirim di `start`) |
-| `iv_cv_profile` | dict | profil ringkas dari response `start` |
-| `iv_job` | dict | lowongan terpilih: `job_id`, `job_title`, `company_name` |
-| `iv_history` | list | `[{question, answer, category}]` |
-| `iv_current_q` | dict | pertanyaan yang sedang menunggu jawaban |
-| `iv_progress` | int | nilai progress tampil (setelah clamp) |
-| `iv_assessment` | dict | hasil verdict akhir |
+| Key | Guna |
+|---|---|
+| `iv_stage` | `"setup"` / `"running"` / `"done"` |
+| `iv_cv_text`, `iv_cv_profile` | CV & profil ringkas |
+| `iv_job` | lowongan terpilih (`job_id`, `job_title`, `company_name`) |
+| `iv_plan`, `iv_total_points` | rencana poin inti dari Planner |
+| `iv_current_point_index`, `iv_point_qcount` | posisi & jumlah pertanyaan poin saat ini |
+| `iv_history` | `[{question, answer, category, point_index, reaction}]` |
+| `iv_current_q` | `{reaction, question, category}` yang menunggu jawaban |
+| `iv_assessment` | hasil verdict akhir |
 
-## Penanganan error (NFR-3.02)
+## Tampilan manusiawi (FR-6.02)
 
-Semua panggilan lewat `call_n8n()` sehingga timeout, koneksi putus, HTTP error, dan JSON
-tak valid sudah dikembalikan sebagai `{"error": <pesan ramah>}` tanpa traceback. Halaman
-menampilkannya via `show_error()`. Timeout memakai `TIMEOUT_CHAT` (giliran tanya-jawab
-berbasis satu agent) dan `TIMEOUT_CV` untuk `assess` bila penilaian lebih berat.
+Questioner mengembalikan `reaction` (tanggapan singkat & spesifik atas jawaban terakhir) +
+`question`. Streamlit menampilkannya sebagai satu gelembung: tanggapan (italik) lalu
+pertanyaan — agar terasa seperti pewawancara sungguhan, bukan mesin penembak pertanyaan.
 
-## Privasi (NFR-5.01)
+## Penanganan error & privasi
 
-CV hanya diproses di memory selama sesi. `cv_text` dikirim sekali di `start`; giliran
-berikutnya cukup membawa `cv_profile` ringkas. Tidak ada penyimpanan CV permanen.
+Semua panggilan lewat `call_n8n()` → error dikembalikan sebagai `{"error": <pesan ramah>}`
+tanpa traceback (`NFR-3.02`). CV hanya diproses di memory; `cv_text` dikirim sekali di
+`start`, giliran berikutnya cukup `cv_profile` (`NFR-5.01`).

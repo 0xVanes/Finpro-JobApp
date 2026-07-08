@@ -1,10 +1,14 @@
 """
 Simulasi Wawancara (Interview Agent) — FR-6.01 s/d FR-6.05.
 
-Wawancara adaptif berbasis lowongan nyata + CV pengguna. State percakapan
-disimpan di st.session_state; setiap giliran mengirim seluruh riwayat ke n8n
-(webhook stateless). Panjang sesi ditentukan agen (field "done"), dengan
-progress bar dari field "progress" yang dikirim agen.
+Arsitektur multi-agent (coordinator + sub-agent) di n8n:
+- Planner  : menyusun 4-6 POIN INTI wawancara + pertanyaan pertama.
+- Monitor  : menilai apakah poin saat ini sudah cukup terjawab.
+- Questioner: memberi tanggapan manusiawi lalu pertanyaan berikutnya.
+- Assessor : verdict akhir.
+
+Panjang sesi & progress ditentukan STRUKTUR poin, bukan tebakan agen:
+progress = (poin_saat_ini - 1) / total_poin. Deterministik & monotonik.
 
 Kontrak webhook & alur lengkap: lihat docs/interview.md.
 """
@@ -45,9 +49,12 @@ _IV_DEFAULTS = {
     "iv_cv_text":        "",
     "iv_cv_profile":     {},
     "iv_job":            {},         # {job_id, job_title, company_name, location}
-    "iv_history":        [],         # [{question, answer, category}]
-    "iv_current_q":      {},         # pertanyaan yang menunggu jawaban
-    "iv_progress":       0,          # nilai progress tampil (setelah clamp)
+    "iv_plan":           [],         # [{index, point, category}] dari Planner
+    "iv_total_points":   0,          # K poin inti
+    "iv_current_point_index": 1,     # poin yang sedang dibahas (1-based)
+    "iv_point_qcount":   1,          # jumlah pertanyaan pada poin saat ini
+    "iv_history":        [],         # [{question, answer, category, point_index, reaction}]
+    "iv_current_q":      {},         # {reaction, question, category} yang menunggu jawaban
     "iv_assessment":     {},
     "iv_search_results": [],         # cache hasil pencarian lowongan
 }
@@ -66,19 +73,15 @@ def reset_interview() -> None:
         )
 
 
-def apply_progress(agent_progress: object, done: bool) -> None:
+def running_progress() -> int:
     """
-    Terapkan progress dari agen dengan aturan tampil (lihat docs/interview.md):
-    monotonik (tidak mundur) dan tidak pernah 100% sebelum done (maks 95%).
+    Progress deterministik dari struktur poin (bukan tebakan agen):
+    (poin_saat_ini - 1) / total_poin. Selalu monotonik karena indeks poin
+    hanya bertambah; mencapai 100% hanya setelah poin terakhir tuntas (done).
     """
-    if done:
-        st.session_state.iv_progress = 100
-        return
-    try:
-        p = int(agent_progress)
-    except (TypeError, ValueError):
-        p = st.session_state.iv_progress
-    st.session_state.iv_progress = min(max(st.session_state.iv_progress, p), 95)
+    total = st.session_state.iv_total_points or 1
+    idx = st.session_state.iv_current_point_index or 1
+    return max(0, min(round((idx - 1) / total * 100), 99))
 
 
 def run_assessment() -> None:
@@ -86,11 +89,12 @@ def run_assessment() -> None:
     with st.spinner("AI menilai keseluruhan wawancara..."):
         result = call_n8n(
             payload={
-                "mode":       "interview",
-                "action":     "assess",
-                "job_id":     st.session_state.iv_job.get("job_id"),
-                "cv_profile": st.session_state.iv_cv_profile,
-                "history":    st.session_state.iv_history,
+                "mode":         "interview",
+                "action":       "assess",
+                "job_id":       st.session_state.iv_job.get("job_id"),
+                "cv_profile":   st.session_state.iv_cv_profile,
+                "plan":         st.session_state.iv_plan,
+                "history":      st.session_state.iv_history,
             },
             timeout=TIMEOUT_CV,
         )
@@ -98,9 +102,19 @@ def run_assessment() -> None:
         show_error(result["error"])
         return
     st.session_state.iv_assessment = result
-    st.session_state.iv_progress = 100
     st.session_state.iv_stage = "done"
     st.rerun()
+
+
+def render_interviewer(turn: dict, heading: str = "") -> None:
+    """Tampilkan giliran pewawancara: tanggapan (jika ada) lalu pertanyaan."""
+    with st.chat_message("assistant"):
+        if heading:
+            st.markdown(heading)
+        reaction = turn.get("reaction", "")
+        if reaction:
+            st.markdown(f"_{reaction}_")
+        st.markdown(turn.get("question", ""))
 
 
 # ════════════════════════════════════════════════════════════════
@@ -113,7 +127,7 @@ if st.session_state.iv_stage == "setup":
     uploaded = st.file_uploader(
         "CV (PDF atau DOCX) — tidak disimpan permanen (NFR-5.01)",
         type=["pdf", "docx"],
-        help="Pertanyaan wawancara disusun berdasarkan isi CV ini dan lowongan yang dipilih.",
+        help="Rencana & pertanyaan wawancara disusun dari isi CV ini dan lowongan yang dipilih.",
     )
 
     # ── Langkah 2: Cari & pilih lowongan nyata ───────────────────
@@ -154,7 +168,6 @@ if st.session_state.iv_stage == "setup":
     results = st.session_state.iv_search_results
     selected_job = None
     if results:
-        # Peringatkan bila kontrak job_id belum dipenuhi workflow n8n
         if any(not j.get("job_id") for j in results):
             st.warning(
                 "Sebagian lowongan tidak memiliki `job_id`. Pastikan workflow n8n "
@@ -206,8 +219,8 @@ if st.session_state.iv_stage == "setup":
             )
             st.stop()
 
-        # Panggil action=start → pertanyaan pertama
-        with st.spinner("AI menyiapkan pertanyaan pertama..."):
+        # Panggil action=start → Planner menyusun rencana poin + pertanyaan pertama
+        with st.spinner("AI menyusun rencana wawancara..."):
             result = call_n8n(
                 payload={
                     "mode":     "interview",
@@ -222,6 +235,11 @@ if st.session_state.iv_stage == "setup":
             show_error(result["error"])
             st.stop()
 
+        plan = result.get("plan", []) or []
+        if not plan:
+            show_error("AI gagal menyusun rencana wawancara. Coba lagi.")
+            st.stop()
+
         # Simpan state & pindah ke fase running
         st.session_state.iv_cv_text    = cv_text
         st.session_state.iv_cv_profile = result.get("cv_profile", {})
@@ -231,13 +249,16 @@ if st.session_state.iv_stage == "setup":
             "company_name": selected_job.get("company_name", "N/A"),
             "location":     selected_job.get("location", "N/A"),
         }
+        st.session_state.iv_plan                = plan
+        st.session_state.iv_total_points        = result.get("total_points", len(plan))
+        st.session_state.iv_current_point_index = result.get("current_point_index", 1)
+        st.session_state.iv_point_qcount        = 1
         st.session_state.iv_current_q = {
-            "question":        result.get("question", ""),
-            "category":        result.get("category", ""),
-            "question_number": result.get("question_number", 1),
+            "reaction": "",   # pertanyaan pertama tidak menanggapi jawaban apa pun
+            "question": result.get("question", ""),
+            "category": result.get("category", ""),
         }
         st.session_state.iv_history = []
-        apply_progress(result.get("progress", 0), done=False)
         st.session_state.iv_stage = "running"
         st.rerun()
 
@@ -248,36 +269,40 @@ if st.session_state.iv_stage == "setup":
 elif st.session_state.iv_stage == "running":
 
     job = st.session_state.iv_job
+    plan = st.session_state.iv_plan
+    total = st.session_state.iv_total_points or len(plan)
+    cur_idx = st.session_state.iv_current_point_index
+
     st.caption(
         f"🎯 Wawancara untuk **{job.get('job_title', '-')}** "
         f"di {job.get('company_name', '-')}"
     )
 
-    # Progress bar (nilai sudah di-clamp saat disimpan)
-    pct = st.session_state.iv_progress
-    q_no = len(st.session_state.iv_history) + 1
-    st.progress(pct / 100, text=f"Progres wawancara: {pct}%  ·  Pertanyaan ke-{q_no}")
+    # Progress bar deterministik dari poin
+    pct = running_progress()
+    st.progress(pct / 100, text=f"Progres: {pct}%  ·  Poin {cur_idx}/{total}")
+
+    # Rencana poin inti (transparansi struktur wawancara)
+    with st.expander("🗂️ Poin inti yang dinilai"):
+        for pt in plan:
+            i = pt.get("index", 0)
+            mark = "✅" if i < cur_idx else ("🔹" if i == cur_idx else "⚪")
+            st.markdown(f"{mark} **{i}.** {pt.get('point', '-')} · _{pt.get('category', '')}_")
 
     # Riwayat Q&A yang sudah dijawab
-    for i, turn in enumerate(st.session_state.iv_history, start=1):
-        with st.chat_message("assistant"):
-            cat = turn.get("category", "")
-            st.markdown(f"**Pertanyaan {i}**" + (f" · _{cat}_" if cat else ""))
-            st.markdown(turn.get("question", ""))
+    for turn in st.session_state.iv_history:
+        render_interviewer(turn)
         with st.chat_message("user"):
             st.markdown(turn.get("answer", ""))
 
-    # Pertanyaan yang sedang berjalan
+    # Pertanyaan yang sedang berjalan (tanggapan + pertanyaan)
     current = st.session_state.iv_current_q
-    with st.chat_message("assistant"):
-        cat = current.get("category", "")
-        st.markdown(f"**Pertanyaan {q_no}**" + (f" · _{cat}_" if cat else ""))
-        st.markdown(current.get("question", ""))
+    render_interviewer(current)
 
     # Input jawaban
     answer = st.text_area(
         "Jawaban kamu",
-        key=f"iv_answer_{q_no}",
+        key=f"iv_answer_{len(st.session_state.iv_history)}",
         placeholder="Ketik jawabanmu di sini...",
         height=140,
     )
@@ -286,27 +311,36 @@ elif st.session_state.iv_stage == "running":
     send_clicked = col_send.button("➡️ Kirim Jawaban", use_container_width=True, type="primary")
     end_clicked  = col_end.button("🏁 Selesai & Nilai Sekarang", use_container_width=True)
 
+    def _record_answer(text: str) -> None:
+        """Catat giliran saat ini ke riwayat dengan poin yang sedang dibahas."""
+        st.session_state.iv_history.append({
+            "question":    current.get("question", ""),
+            "answer":      text.strip(),
+            "category":    current.get("category", ""),
+            "point_index": st.session_state.iv_current_point_index,
+            "reaction":    current.get("reaction", ""),
+        })
+
     if send_clicked:
         if not answer.strip():
             st.warning("Tulis jawaban dulu sebelum mengirim.")
             st.stop()
 
-        # Catat giliran ini ke riwayat
-        st.session_state.iv_history.append({
-            "question": current.get("question", ""),
-            "answer":   answer.strip(),
-            "category": current.get("category", ""),
-        })
+        _record_answer(answer)
 
-        # Minta pertanyaan berikutnya / keputusan selesai dari agen
-        with st.spinner("AI menyusun pertanyaan berikutnya..."):
+        # Monitor menilai poin → Decide (cap 5) → Questioner (tanggapan + pertanyaan)
+        with st.spinner("Pewawancara menanggapi jawabanmu..."):
             result = call_n8n(
                 payload={
-                    "mode":       "interview",
-                    "action":     "answer",
-                    "job_id":     job.get("job_id"),
-                    "cv_profile": st.session_state.iv_cv_profile,
-                    "history":    st.session_state.iv_history,
+                    "mode":                "interview",
+                    "action":              "answer",
+                    "job_id":              job.get("job_id"),
+                    "cv_profile":          st.session_state.iv_cv_profile,
+                    "plan":                st.session_state.iv_plan,
+                    "total_points":        st.session_state.iv_total_points,
+                    "current_point_index": st.session_state.iv_current_point_index,
+                    "point_qcount":        st.session_state.iv_point_qcount,
+                    "history":             st.session_state.iv_history,
                 },
                 timeout=TIMEOUT_CHAT,
             )
@@ -315,26 +349,23 @@ elif st.session_state.iv_stage == "running":
             st.stop()
 
         if result.get("done"):
-            # Agen menganggap wawancara cukup → langsung menilai
-            apply_progress(result.get("progress", 100), done=True)
+            # Semua poin inti tuntas → langsung menilai
             run_assessment()
         else:
+            st.session_state.iv_current_point_index = result.get(
+                "current_point_index", st.session_state.iv_current_point_index)
+            st.session_state.iv_point_qcount = result.get(
+                "point_qcount", st.session_state.iv_point_qcount)
             st.session_state.iv_current_q = {
-                "question":        result.get("question", ""),
-                "category":        result.get("category", ""),
-                "question_number": result.get("question_number", q_no + 1),
+                "reaction": result.get("reaction", ""),
+                "question": result.get("question", ""),
+                "category": result.get("category", ""),
             }
-            apply_progress(result.get("progress", 0), done=False)
             st.rerun()
 
     if end_clicked:
-        # Akhiri lebih awal: jawaban saat ini disertakan bila ada isi
         if answer.strip():
-            st.session_state.iv_history.append({
-                "question": current.get("question", ""),
-                "answer":   answer.strip(),
-                "category": current.get("category", ""),
-            })
+            _record_answer(answer)
         if not st.session_state.iv_history:
             st.warning("Jawab minimal satu pertanyaan sebelum meminta penilaian.")
             st.stop()
@@ -399,6 +430,8 @@ elif st.session_state.iv_stage == "done":
     with st.expander("📋 Lihat transkrip lengkap & catatan per pertanyaan"):
         for i, turn in enumerate(st.session_state.iv_history):
             cat = turn.get("category", "")
+            if turn.get("reaction"):
+                st.markdown(f"_{turn['reaction']}_")
             st.markdown(f"**Q{i + 1}**" + (f" · _{cat}_" if cat else "") + f": {turn.get('question', '')}")
             st.markdown(f"> {turn.get('answer', '')}")
             if i < len(per_q):
@@ -428,7 +461,6 @@ elif st.session_state.iv_stage == "done":
                 use_container_width=True,
             )
         else:
-            # Fallback teks bila fpdf2 belum terinstall
             lines = [
                 "TRANSKRIP SIMULASI WAWANCARA",
                 f"Posisi: {job.get('job_title', '-')} | {job.get('company_name', '-')}",
