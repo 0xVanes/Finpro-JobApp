@@ -1,37 +1,26 @@
-"""
-utils.py — Shared utilities JobPath
-=====================================
-Berisi konfigurasi, CSS, dan helper functions yang dipakai
-bersama oleh seluruh halaman di pages/.
-
-Prinsip kode yang diterapkan:
-    - Type hints pada semua fungsi publik  (PEP 484)
-    - Docstring pada semua fungsi          (PEP 257)
-    - Konstanta kapital untuk magic values (PEP 8)
-    - Error handling eksplisit, tidak bare-except
-    - Tidak ada HTML inline di luar fungsi render
-    - Import di level modul, bukan di dalam fungsi
-
-Cara pakai di setiap page:
-    from utils import setup_page, call_n8n, hero, job_card, show_error
-"""
-
 from __future__ import annotations
 
 import io
 import logging
-from typing import Optional
 import os
+
 import requests
 import streamlit as st
+from dotenv import find_dotenv, load_dotenv
 
 # ─── KONSTANTA KONFIGURASI (NFR-4.03) ───────────────────────────
-# Semua nilai sensitif dari st.secrets / environment variable
+# Semua nilai sensitif dari environment variable (.env)
 # Tidak ada credential yang di-hardcode di sini
-from dotenv import find_dotenv
-find_dotenv()
-N8N_WEBHOOK_URL: str = os.environ.get("N8N_WEBHOOK_URL")
-print(N8N_WEBHOOK_URL)
+load_dotenv(find_dotenv())
+
+N8N_WEBHOOK_URL: str | None = os.environ.get("N8N_WEBHOOK_URL")
+
+# Basic Auth untuk webhook n8n (opsional — kosongkan di .env kalau
+# webhook tidak pakai Basic Auth). Kalau salah satu USER/PASS terisi,
+# call_n8n() otomatis menyertakan header Authorization di tiap request.
+N8N_BASIC_AUTH_USER: str | None = os.environ.get("N8N_BASIC_AUTH_USER")
+N8N_BASIC_AUTH_PASS: str | None = os.environ.get("N8N_BASIC_AUTH_PASS")
+
 # Satu logger per modul — tidak pakai print() untuk error internal
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -39,14 +28,78 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+if not N8N_WEBHOOK_URL:
+    # Jangan biarkan aplikasi diam-diam gagal di call_n8n() tanpa
+    # penjelasan — beri tahu sejak awal lewat log kalau .env belum diisi.
+    logger.warning(
+        "N8N_WEBHOOK_URL tidak ditemukan di environment. "
+        "Pastikan file .env berisi N8N_WEBHOOK_URL=<url webhook n8n kamu>."
+    )
+
 # Timeout (detik) per jenis request sesuai NFR-2
-TIMEOUT_CHAT:  int = 15   # NFR-2.01 RAG chat ≤ 15 s
-TIMEOUT_SQL:   int = 5    # NFR-2.02 SQL filter ≤ 5 s
-TIMEOUT_CV:    int = 80   # NFR-2.03 CV extract ≤ 30 s
+#
+# Catatan TIMEOUT_SQL: workflow n8n untuk mode "search" saat ini masih
+# memakai AI Agent (LangChain Agent + tool SQL), bukan direct query.
+# Nilai 5s sesuai target NFR-2.02 TIDAK realistis untuk pipeline
+# berbasis LLM (butuh waktu untuk agent menyusun & menjalankan query).
+# Dinaikkan ke 20s supaya tidak timeout prematur di kondisi normal.
+# (Kalau nanti mode search disederhanakan jadi direct SQL tanpa AI
+# Agent, nilai ini bisa diturunkan lagi mendekati target asli.)
+TIMEOUT_CHAT:  int = 30   # NFR-2.01 RAG chat
+TIMEOUT_SQL:   int = 20   # Lihat catatan di atas
+TIMEOUT_CV:    int = 150  # mode cv_match sekarang = 5 AI Agent berantai
+                          # (CV Matcher -> Career Path -> Gap Analysis ->
+                          # Certification -> Roadmap). Tiap agent bisa
+                          # makan 10-20 detik (LLM + tool call), jadi
+                          # total realistis 50-100+ detik. 60s (nilai
+                          # sebelumnya) terbukti kurang di percobaan
+                          # nyata — dinaikkan ke 150s dengan margin aman.
 TIMEOUT_OTHER: int = 20   # Default untuk mode lainnya
 
 # Format file CV yang didukung (NFR-3.02)
 SUPPORTED_CV_TYPES: tuple[str, ...] = ("pdf", "docx")
+
+
+# ─── HELPER: SESSION STATE ───────────────────────────────────────
+
+_STATE_DEFAULTS: dict[str, object] = {
+    "chat_history": [],
+}
+
+
+def init_session_state() -> None:
+    """
+    Inisialisasi session_state dengan nilai default (idempoten).
+
+    Aman dipanggil berkali-kali — hanya set nilai default kalau
+    key belum ada di session_state (tidak menimpa data yang sudah
+    ada, misal chat_history yang sedang berjalan).
+    """
+    for key, default in _STATE_DEFAULTS.items():
+        if key not in st.session_state:
+            st.session_state[key] = list(default) if isinstance(default, list) else default
+
+
+# ─── HELPER: CSS ─────────────────────────────────────────────────
+
+def load_css(path: str = "styles.css") -> None:
+    """
+    Muat dan inject CSS eksternal ke halaman Streamlit aktif.
+
+    PENTING: selalu pakai encoding="utf-8" eksplisit — tanpa ini,
+    Windows akan pakai encoding default (cp1252) dan merusak karakter
+    non-ASCII di CSS (emoji, simbol panah, dll jadi mojibake).
+
+    Args:
+        path: Path ke file CSS, relatif terhadap direktori kerja
+              Streamlit (default: "styles.css" di root project).
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            css = f.read()
+        st.markdown(f"<style>{css}</style>", unsafe_allow_html=True)
+    except FileNotFoundError:
+        logger.warning("styles.css tidak ditemukan di path: %s", path)
 
 
 # ─── HELPER: N8N ────────────────────────────────────────────────
@@ -66,8 +119,24 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
     Returns:
         Dict hasil JSON dari N8N, atau ``{"error": str}`` jika gagal.
     """
+    if not N8N_WEBHOOK_URL:
+        return {"error": (
+            "⚙️ N8N_WEBHOOK_URL belum dikonfigurasi. "
+            "Hubungi administrator aplikasi."
+        )}
+
+    # Basic Auth opsional — hanya disertakan kalau kredensial terisi di .env
+    auth = None
+    if N8N_BASIC_AUTH_USER and N8N_BASIC_AUTH_PASS:
+        auth = (N8N_BASIC_AUTH_USER, N8N_BASIC_AUTH_PASS)
+
     try:
-        response = requests.post(N8N_WEBHOOK_URL,json=payload,timeout=timeout,)
+        response = requests.post(
+            N8N_WEBHOOK_URL,
+            json=payload,
+            timeout=timeout,
+            auth=auth,
+        )
         response.raise_for_status()
         return response.json()                          # type: ignore[no-any-return]
 
@@ -75,8 +144,9 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
         logger.warning("N8N timeout setelah %ds — payload mode: %s",
                        timeout, payload.get("mode", "?"))
         return {"error": (
-            f"""⏱️ Waktu habis ({timeout}s).
-            Server sedang sibuk, silakan coba lagi.""" + N8N_WEBHOOK_URL)}
+            f"⏱️ Waktu habis ({timeout}s). "
+            "Server sedang sibuk, silakan coba lagi."
+        )}
 
     except requests.exceptions.ConnectionError:
         logger.error("Tidak dapat menjangkau N8N: %s", N8N_WEBHOOK_URL)
@@ -88,6 +158,11 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
     except requests.exceptions.HTTPError as exc:
         status = exc.response.status_code if exc.response is not None else "?"
         logger.error("N8N HTTP error %s — payload: %s", status, payload)
+        if status == 401:
+            return {"error": (
+                "🔒 Autentikasi ke server ditolak (401). "
+                "Cek N8N_BASIC_AUTH_USER/N8N_BASIC_AUTH_PASS di .env."
+            )}
         return {"error": f"🚫 Server merespons dengan kode {status}. Coba lagi."}
 
     except ValueError as exc:
@@ -100,27 +175,36 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
         return {"error": "❌ Terjadi kesalahan tak terduga. Hubungi administrator."}
 
 
-# ─── HELPER: CV ─────────────────────────────────────────────────
+# ─── HELPER: CV — EKSTRAKSI TEKS + FALLBACK OCR ─────────────────
+#
+# OCR dipakai sebagai FALLBACK saja — hanya dijalankan kalau ekstraksi
+# teks normal tidak menghasilkan teks yang cukup (mis. CV hasil scan
+# atau desain visual yang teksnya berbentuk gambar). Backend OCR: OpenAI
+# Vision (gpt-4o-mini) — tidak perlu instalasi Tesseract di sistem operasi,
+# cukup pakai OPENAI_API_KEY yang sudah dipakai fitur lain di project ini.
+
+MIN_CHARS_BEFORE_OCR: int = 20
+PDF_RENDER_DPI: int = 200
+OCR_MAX_TOKENS: int = 2000     # cukup untuk ~1 halaman CV padat teks
+OCR_TIMEOUT_SECONDS: int = 30  # jangan sampai 1 gambar bikin request menggantung lama
+
 
 def extract_cv_text(uploaded_file) -> str:
     """
     Ekstrak teks mentah dari file CV yang diupload.
 
-    Mendukung PDF dan DOCX. File hanya dibaca ke memory (NFR-5.01),
-    tidak disimpan ke disk. Timeout dikontrol di sisi caller via
-    TIMEOUT_CV saat memanggil call_n8n() setelahnya.
+    Mendukung PDF dan DOCX, termasuk fallback OCR untuk CV yang
+    berupa hasil scan/gambar. File hanya dibaca ke memory (NFR-5.01),
+    tidak disimpan ke disk.
 
     Args:
         uploaded_file: Objek UploadedFile dari st.file_uploader().
 
     Returns:
         String teks hasil ekstraksi, atau string kosong jika gagal.
-
-    Raises:
-        Tidak raise — semua exception di-catch dan di-log.
     """
     try:
-        raw_bytes = uploaded_file.getvalue()
+        raw_bytes = uploaded_file.read()
         file_ext = uploaded_file.name.rsplit(".", 1)[-1].lower()
 
         if file_ext == "pdf":
@@ -135,34 +219,187 @@ def extract_cv_text(uploaded_file) -> str:
         logger.error("extract_cv_text gagal: %s", exc)
         return ""
 
-## ganti bytesio(binary n8n)
-def _extract_pdf(raw: bytes) -> str:
-    """Ekstrak teks dari bytes PDF menggunakan pypdf."""
+
+def _ocr_image_bytes(image_bytes: bytes) -> str:
+    """
+    Jalankan OCR pada satu gambar lewat OpenAI Vision (model gpt-4o-mini).
+
+    Dipilih dibanding Tesseract karena tidak perlu instalasi program
+    terpisah di sistem operasi (Tesseract OCR engine) — cukup pakai
+    OPENAI_API_KEY yang sudah dipakai fitur lain di project ini.
+    Trade-off: butuh koneksi internet & kena biaya API per panggilan
+    (kecil, tapi bukan gratis seperti Tesseract lokal).
+
+    Return string kosong kalau OCR tidak tersedia/gagal — tidak pernah
+    raise, supaya ekstraksi CV tetap lanjut jalan tanpa OCR kalau ini gagal.
+    """
     try:
-        from pypdf import PdfReader          # lazy import — opsional dependency
-        reader = PdfReader(io.BytesIO(raw))
-        pages = [page.extract_text() or "" for page in reader.pages]
-        return "\n".join(pages)
+        import base64
+        from openai import OpenAI
+
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            logger.warning(
+                "OCR dilewati: OPENAI_API_KEY tidak ditemukan di environment."
+            )
+            return ""
+
+        client = OpenAI(api_key=api_key)
+        base64_image = base64.b64encode(image_bytes).decode("utf-8")
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Ekstrak SEMUA teks yang terlihat di gambar ini "
+                            "apa adanya (verbatim), tanpa komentar atau "
+                            "penjelasan tambahan. Kalau gambar tidak "
+                            "mengandung teks sama sekali, jawab dengan "
+                            "string kosong."
+                        ),
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{base64_image}"},
+                    },
+                ],
+            }],
+            max_tokens=OCR_MAX_TOKENS,
+            timeout=OCR_TIMEOUT_SECONDS,
+        )
+        return (response.choices[0].message.content or "").strip()
+
+    except ImportError:
+        logger.warning(
+            "OCR dilewati: package 'openai' tidak terinstall. "
+            "Jalankan: pip install openai"
+        )
+        return ""
+    except Exception as exc:
+        logger.warning("OCR (OpenAI Vision) gagal diproses: %s", exc)
+        return ""
+
+
+def _extract_pdf(raw: bytes) -> str:
+    """Ekstrak teks dari PDF, dengan fallback OCR per halaman jika teks native terlalu sedikit."""
+    try:
+        from pypdf import PdfReader
     except ImportError:
         logger.error("pypdf tidak terinstall. Jalankan: pip install pypdf")
         return ""
+
+    try:
+        reader = PdfReader(io.BytesIO(raw))
+        page_texts: list[str] = []
+
+        for page_number, page in enumerate(reader.pages):
+            native_text = (page.extract_text() or "").strip()
+            if len(native_text) >= MIN_CHARS_BEFORE_OCR:
+                page_texts.append(native_text)
+                continue
+            ocr_text = _ocr_pdf_page(raw, page_number)
+            page_texts.append(ocr_text or native_text)
+
+        return "\n".join(page_texts).strip()
+
     except Exception as exc:
         logger.error("Gagal membaca PDF: %s", exc)
         return ""
 
 
-def _extract_docx(raw: bytes) -> str:
-    """Ekstrak teks dari bytes DOCX menggunakan python-docx."""
+def _ocr_pdf_page(raw_pdf: bytes, page_number: int) -> str:
+    """Render satu halaman PDF jadi gambar (via PyMuPDF), lalu OCR."""
     try:
-        from docx import Document           # lazy import — opsional dependency
-        doc = Document(io.BytesIO(raw))
-        return "\n".join(p.text for p in doc.paragraphs)
+        import fitz  # PyMuPDF
+
+        pdf_doc = fitz.open(stream=raw_pdf, filetype="pdf")
+        page = pdf_doc.load_page(page_number)
+        zoom = PDF_RENDER_DPI / 72
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom))
+        return _ocr_image_bytes(pixmap.tobytes("png"))
+    except ImportError:
+        logger.warning("OCR PDF dilewati: pymupdf tidak terinstall. Jalankan: pip install pymupdf")
+        return ""
+    except Exception as exc:
+        logger.warning("Gagal render halaman %d untuk OCR: %s", page_number, exc)
+        return ""
+
+
+def _extract_docx(raw: bytes) -> str:
+    """
+    Ekstrak teks dari DOCX: paragraf + tabel + text box, dengan
+    fallback OCR gambar tersemat kalau hasil gabungan masih sedikit.
+    """
+    try:
+        from docx import Document
     except ImportError:
         logger.error("python-docx tidak terinstall. Jalankan: pip install python-docx")
         return ""
+
+    try:
+        doc = Document(io.BytesIO(raw))
+        text_parts = _collect_docx_text_parts(doc)
+        combined_text = "\n".join(text_parts).strip()
+
+        if len(combined_text) >= MIN_CHARS_BEFORE_OCR:
+            return combined_text
+
+        ocr_text = _ocr_docx_embedded_images(raw)
+        return (combined_text + "\n" + ocr_text).strip()
+
     except Exception as exc:
         logger.error("Gagal membaca DOCX: %s", exc)
         return ""
+
+
+def _collect_docx_text_parts(doc) -> list[str]:
+    """Kumpulkan teks dari paragraf, tabel, dan text box sebuah dokumen DOCX."""
+    parts: list[str] = []
+    parts.extend(p.text for p in doc.paragraphs if p.text.strip())
+
+    for table in doc.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                if cell.text.strip():
+                    parts.append(cell.text)
+
+    try:
+        import re
+        textbox_matches = re.findall(r"<w:t[^>]*>([^<]*)</w:t>", doc.element.xml)
+        textbox_text = " ".join(t for t in textbox_matches if t.strip())
+        if textbox_text.strip():
+            parts.append(textbox_text)
+    except Exception as exc:
+        logger.warning("Gagal parsing text box DOCX: %s", exc)
+
+    return parts
+
+
+def _ocr_docx_embedded_images(raw: bytes) -> str:
+    """Ekstrak dan OCR semua gambar tersemat (word/media/*) di dalam DOCX."""
+    import zipfile
+
+    supported_extensions = (".png", ".jpg", ".jpeg", ".bmp", ".tiff")
+    ocr_results: list[str] = []
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as docx_zip:
+            media_files = [
+                name for name in docx_zip.namelist()
+                if name.startswith("word/media/") and name.lower().endswith(supported_extensions)
+            ]
+            for media_name in media_files:
+                ocr_text = _ocr_image_bytes(docx_zip.read(media_name))
+                if ocr_text:
+                    ocr_results.append(ocr_text)
+    except Exception as exc:
+        logger.warning("Gagal ekstrak gambar tersemat dari DOCX: %s", exc)
+
+    return "\n".join(ocr_results)
 
 
 def validate_cv_upload(uploaded_file) -> tuple[bool, str]:
@@ -186,7 +423,6 @@ def validate_cv_upload(uploaded_file) -> tuple[bool, str]:
             f"Harap upload file PDF atau DOCX."
         )
 
-    # Batas ukuran 10 MB
     max_bytes = 10 * 1024 * 1024
     if uploaded_file.size > max_bytes:
         return False, (
@@ -200,27 +436,13 @@ def validate_cv_upload(uploaded_file) -> tuple[bool, str]:
 # ─── HELPER: RENDER KOMPONEN UI ─────────────────────────────────
 
 def section_lbl(text: str, icon: str = "") -> None:
-    """
-    Render label bagian kecil berwarna sebelum kelompok konten.
-
-    Args:
-        text: Teks label (akan ditampilkan uppercase).
-        icon: Emoji opsional di depan teks.
-    """
+    """Render label bagian kecil berwarna sebelum kelompok konten."""
     prefix = f"{icon} " if icon else ""
-    st.markdown(
-        f'<div class="section-lbl">{prefix}{text}</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="section-lbl">{prefix}{text}</div>', unsafe_allow_html=True)
+
 
 def render_skill_chips(matching: list[str], missing: list[str]) -> None:
-    """
-    Render chip skill dengan warna berbeda: hijau (cocok) vs oranye (kurang).
-
-    Args:
-        matching: Skill yang sudah dimiliki kandidat.
-        missing:  Skill yang perlu dikembangkan.
-    """
+    """Render chip skill: hijau (cocok, class .chip.has) vs oranye (kurang, class .chip.miss)."""
     chips = (
         "".join(f'<span class="chip has">✓ {s}</span>' for s in matching)
         + "".join(f'<span class="chip miss">✗ {s}</span>' for s in missing)
@@ -230,23 +452,17 @@ def render_skill_chips(matching: list[str], missing: list[str]) -> None:
 
 
 def show_error(message: str) -> None:
-    """
-    Tampilkan kotak error ramah pengguna tanpa traceback Python (NFR-3.02).
+    """Tampilkan kotak error ramah pengguna tanpa traceback Python (NFR-3.02)."""
+    st.markdown(f'<div class="err-box">{message}</div>', unsafe_allow_html=True)
 
-    Args:
-        message: Pesan error yang akan ditampilkan ke pengguna.
-    """
-    st.markdown(
-        f'<div class="err-box">{message}</div>',
-        unsafe_allow_html=True,
-    )
 
 def job_card(job: dict) -> None:
     """
-    Render kartu lowongan dengan format seragam.
+    Render kartu lowongan (class .job-card di styles.css — cocokkan
+    kalau styles.css berubah nama class-nya lagi).
 
-    Menggunakan .get() dengan default di semua field
-    sehingga tidak crash jika field tidak ada di respons N8N.
+    Menggunakan .get() dengan default di semua field sehingga tidak
+    crash jika field tidak ada di respons N8N.
 
     Args:
         job: Dict berisi data lowongan dari N8N.
@@ -258,78 +474,22 @@ def job_card(job: dict) -> None:
     reason = job.get("relevance_reason") or job.get("reason") or ""
     rank   = job.get("rank", "")
 
-    rank_html   = (
+    rank_html = (
         f'<div style="font-size:.7rem;color:#6D5DF6;font-weight:700;'
         f'margin-bottom:2px">{rank}</div>'
     ) if rank else ""
 
-    reason_html = (
-        f'<div class="reason">💡 {reason}</div>'
-    ) if reason else ""
+    reason_html = f'<div class="job-reason">💡 {reason}</div>' if reason else ""
 
     st.markdown(
-        f'<div class="jp-card">'
+        f'<div class="job-card">'
         f'{rank_html}'
-        f'<div style="display:flex;align-items:center;gap:10px">'
-        f'<div class="card-icon" style="width:36px;height:36px;border-radius:10px;'
-        f'background:linear-gradient(135deg,#6D5DF6,#00C2A8);'
-        f'display:flex;align-items:center;justify-content:center;'
-        f'flex-shrink:0;color:#fff;font-size:18px">💼</div>'
-        f'<h3>{job.get("job_title", "N/A")}</h3>'
-        f'</div>'
-        f'<div class="company" style="margin-top:4px">'
-        f'{job.get("company_name", "N/A")}</div>'
-        f'<div class="meta">'
+        f'<h3>💼 {job.get("job_title", "N/A")}</h3>'
+        f'<div class="job-company">{job.get("company_name", "N/A")}</div>'
+        f'<div class="job-meta">'
         f'📍 {job.get("location", "N/A")} · {job.get("work_type", "N/A")}</div>'
         f'<div style="margin-top:8px">'
-        f'<span class="sal-tag">💰 {salary}</span></div>'
-        f'{reason_html}'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-def job_card(job: dict) -> None:
-    """
-    Render kartu lowongan dengan format seragam.
-
-    Menggunakan .get() dengan default di semua field
-    sehingga tidak crash jika field tidak ada di respons N8N.
-
-    Args:
-        job: Dict berisi data lowongan dari N8N.
-    """
-    salary = job.get("salary") or job.get("salary_raw") or "Tidak disebutkan"
-    if salary in ("None", "null", ""):
-        salary = "Tidak disebutkan"
-
-    reason = job.get("relevance_reason") or job.get("reason") or ""
-    rank   = job.get("rank", "")
-
-    rank_html   = (
-        f'<div style="font-size:.7rem;color:#6D5DF6;font-weight:700;'
-        f'margin-bottom:2px">{rank}</div>'
-    ) if rank else ""
-
-    reason_html = (
-        f'<div class="reason">💡 {reason}</div>'
-    ) if reason else ""
-
-    st.markdown(
-        f'<div class="jp-card">'
-        f'{rank_html}'
-        f'<div style="display:flex;align-items:center;gap:10px">'
-        f'<div class="card-icon" style="width:36px;height:36px;border-radius:10px;'
-        f'background:linear-gradient(135deg,#6D5DF6,#00C2A8);'
-        f'display:flex;align-items:center;justify-content:center;'
-        f'flex-shrink:0;color:#fff;font-size:18px">💼</div>'
-        f'<h3>{job.get("job_title", "N/A")}</h3>'
-        f'</div>'
-        f'<div class="company" style="margin-top:4px">'
-        f'{job.get("company_name", "N/A")}</div>'
-        f'<div class="meta">'
-        f'📍 {job.get("location", "N/A")} · {job.get("work_type", "N/A")}</div>'
-        f'<div style="margin-top:8px">'
-        f'<span class="sal-tag">💰 {salary}</span></div>'
+        f'<span class="salary-tag">💰 {salary}</span></div>'
         f'{reason_html}'
         f'</div>',
         unsafe_allow_html=True,
