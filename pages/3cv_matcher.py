@@ -1,11 +1,8 @@
 import streamlit as st
-import requests
-from dotenv import find_dotenv
 from menu import menu_with_redirect
-import json
 
 from utils import (
-    call_n8n, section_lbl, show_error,
+    call_n8n, section_lbl, show_error, load_css,
     extract_cv_text, validate_cv_upload, render_skill_chips, TIMEOUT_CV,
 )
 
@@ -15,12 +12,6 @@ st.set_page_config(page_title="FinPRO-JOB - CV Matcher", layout="wide")
 # Load menu
 menu_with_redirect()
 
-
-## Loading CSS
-def load_css():
-    with open("styles.css", "r") as f:
-        css = f.read()
-    st.markdown(f'<style>{css}</style>', unsafe_allow_html=True)
 load_css()
 
 ## ---------- FRONTEND STARTS HERE
@@ -28,11 +19,12 @@ st.markdown("""
 <div class="cvmatcher-header">
   <div class="emoji-bg">📄</div>
   <h1>CV Matcher</h1>
-  <p class="sub">Upload CV → Top 3 lowongan paling cocok beserta alasan spesifik</p>
+  <p class="sub">Upload CV → lowongan tercocok, jalur karir, dan skill gap sekaligus</p>
   <div class="badge-row">
     <span>Upload PDF/DOCX (FR-4.01)</span>
-    <span>Top 3 (FR-4.03)</span>
-    <span>Hanya di memory (NFR-5.01)</span>
+    <span>Top 3 Lowongan (FR-4.03)</span>
+    <span>Career Path (FR-5.01)</span>
+    <span>Skill Gap (FR-5.02)</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -45,7 +37,7 @@ uploaded = st.file_uploader(
 )
 
 if uploaded is None:
-    st.info("Upload CV kamu untuk mendapatkan rekomendasi lowongan yang paling cocok.")
+    st.info("Upload CV kamu untuk mendapatkan rekomendasi lowongan, jalur karir, dan skill gap.")
     st.stop()
 
 # Validasi file sebelum diproses
@@ -68,20 +60,26 @@ if not cv_text.strip():
     )
     st.stop()
 
-# ── Kirim ke N8N ─────────────────────────────────────────────────
-with st.spinner("AI mencocokkan profil dengan 473 lowongan..."):
+# ── SATU panggilan ke N8N untuk SEMUA section ─────────────────────
+# Workflow n8n (mode=cv_match) sekarang menjalankan berantai:
+# CV Matcher Agent -> Career Path Classification -> Gap Analysis ->
+# Recommend Certification -> Career Roadmap Generator, lalu
+# menggabungkan semua hasilnya jadi satu response JSON.
+with st.spinner("AI menganalisis CV, mencari lowongan, dan menyusun jalur karir..."):
     result = call_n8n(
         payload={"mode": "cv_match", "cv_text": cv_text, "top_n": 3},
-        timeout=TIMEOUT_CV,     # NFR-2.03: maksimal 30 s
+        timeout=TIMEOUT_CV,
     )
 
 if "error" in result:
     show_error(result["error"])
     st.stop()
-# FR-4.02: Profil kandidat yang terdeteksi
-if "output" in result:
-    result = json.loads(result["output"])
 
+# ═══════════════════════════════════════════════════════════════
+# BAGIAN 1 — CV MATCHER (FR-4.02, FR-4.03, FR-4.04)
+# ═══════════════════════════════════════════════════════════════
+
+# FR-4.02: Profil kandidat yang terdeteksi
 profile = result.get("candidate_profile", {})
 if profile:
     section_lbl("Profil Terdeteksi (FR-4.02)", "👤")
@@ -98,146 +96,178 @@ if profile:
         st.markdown(skill_chips, unsafe_allow_html=True)
     st.write("")
 
-# FR-4.03: Top 3 rekomendasi
+# FR-4.03 & FR-4.04: Top 3 rekomendasi lowongan
 recommendations = result.get("recommendations", [])[:3]
 
-if not recommendations:
-    st.warning(f"""Tidak ada rekomendasi yang ditemukan.
-        Pastikan CV memuat informasi skill dan pengalaman {parsed}"""
-    )
-    st.stop()
+if recommendations:
+    section_lbl("Top 3 Rekomendasi Lowongan (FR-4.03)", "🏆")
 
-section_lbl("Top 3 Rekomendasi (FR-4.03)", "🏆")
+    for rank, rec in enumerate(recommendations, start=1):
+        match_pct = rec.get("match_percentage", 0)
+        job_title = rec.get("job_title", "N/A")
+        company   = rec.get("company_name", "N/A")
+        location  = rec.get("location", "N/A")
+        advice    = rec.get("advice", "")
+        matching  = rec.get("matching_skills", [])
+        missing   = rec.get("missing_skills", [])
 
-for rank, rec in enumerate(recommendations, start=1):
-    match_pct = rec.get("match_percentage", 0)
-    job_title = rec.get("job_title", "N/A")
-    company   = rec.get("company_name", "N/A")
-    location  = rec.get("location", "N/A")
-    advice    = rec.get("advice", "")
-    matching  = rec.get("matching_skills", [])
-    missing   = rec.get("missing_skills", [])
-
-    st.markdown(
-        f'<div class="job-card">'
-        f'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-        f'<div>'
-        f'<div style="font-size:.7rem;color:#6D5DF6;font-weight:700">#{rank}</div>'
-        f'<h3>{job_title}</h3>'
-        f'</div>'
-        f'<span class="match-tag">{match_pct}% match</span>'
-        f'</div>'
-        f'<div class="job-company">{company}</div>'
-        f'<div class="job-meta">📍 {location}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-    # Chip skill
-    render_skill_chips(matching, missing)
-
-    # FR-4.04: Alasan rekomendasi
-    if advice:
         st.markdown(
-            f'<div class="job-reason">💡 FR-4.04: {advice}</div>',
+            f'<div class="job-card">'
+            f'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+            f'<div>'
+            f'<div style="font-size:.7rem;color:#6D5DF6;font-weight:700">#{rank}</div>'
+            f'<h3>{job_title}</h3>'
+            f'</div>'
+            f'<span class="match-tag">{match_pct}% match</span>'
+            f'</div>'
+            f'<div class="job-company">{company}</div>'
+            f'<div class="job-meta">📍 {location}</div>'
+            f'</div>',
             unsafe_allow_html=True,
         )
-    st.write("")
-
-## Career Path
-col1, col2, col3 = st.columns(3)
-candidate_profile = result["candidate_profile"]
-target = candidate_profile["current_role"]
-target= candidate_profile["current_role"]
-with col1:
-    st.markdown(f"""<div class="career-card">
-    <div class="career-icon">📊</div>
-    <h3 class="career-title">Job Exp</h3>
-    <div class="career-job">{target}</div>
-</div>""", unsafe_allow_html=True)
-
-exp = candidate_profile["experience_years"]
-if exp <= 2:
-    level = "Junior"
-elif exp <= 5:
-    level = "Mid-Level"
+        render_skill_chips(matching, missing)
+        if advice:
+            st.markdown(f'<div class="job-reason">💡 {advice}</div>', unsafe_allow_html=True)
+        st.write("")
 else:
-    level = "Senior"
-## 0-2 Junior, 3-5 Mid, 6+ Senior   
-with col2:
-    st.markdown(f"""<div class="career-card">
-    <div class="career-icon">🎯</div>
-    <h3 class="career-title">Job Level</h3>
-    <div class="career-job">{level}</div>
-</div>""", unsafe_allow_html=True)
+    st.warning(
+        "Tidak ada rekomendasi lowongan yang ditemukan. "
+        "Pastikan CV memuat informasi skill dan pengalaman."
+    )
 
-career_roadmap = result.get("career_roadmap", {})
-if not career_roadmap:
-    st.warning("Career roadmap not available yet — try again in a moment.")
-phases = career_roadmap["phases"]
-phase_names = " → ".join([p["phase"] for p in phases])
-with col3:
-    st.markdown(f"""<div class="career-card">
-    <div class="career-icon">📈</div>
-    <h3 class="career-title">3 tahap</h3>
-    <div class="career-job">{phase_names}</div>
-</div>""", unsafe_allow_html=True)
+# ═══════════════════════════════════════════════════════════════
+# BAGIAN 2 — CAREER PATH (FR-5.01)
+# ═══════════════════════════════════════════════════════════════
 
-## ISI DARI Hasil LLM
-st.markdown(f"""<div class="salary-info">💡 Jalur Karir menuju: {career_roadmap["target_career"]} </div>""", unsafe_allow_html=True)
+career_paths = result.get("career_paths", [])
 
-
-## Peta Jalur Karir (FR-5.01)
-st.write("PETA JALUR KARIR (FR-5.01)")
-gap_data = result["gap_analysis"]["careers"]
-certifications = result["certifications"]["recommendations"]
-
-cols = st.columns(int(min(3, len(gap_data))))
-
-for i, item in enumerate(gap_data[:3]):
-
-    gap_html = ""
-
-    for skill in item["missing_skills"]:
-        gap_html += f"""
-        <span class="skill-pill">
-            {skill["skill"]} ({skill["priority"]})
-        </span>
-        """
-
-    existing_html = ""
-
-    for skill in item["existing_skills"]:
-        existing_html += f"""
-        <span class="skill-pill">{skill}</span>
-        """
-
-    with cols[i]:
-        st.markdown(f"""
-        <div class="skill-card">
-            <div class="skill-badge">{item["career"]}</div>
-            <div class="skill-count">{len(item["missing_skills"])} Skill Gaps</div>
-            <div class="skill-gap-title">GAP (FR-5.02)</div>
-            <div>{gap_html}</div>
-        </div>""", unsafe_allow_html=True)
-
-## 📚 LINK BELAJAR & SERTIFIKASI (FR-5.04)
-for rec in certifications:
-    links_html = ""
-    for course in rec["courses"]:
-        badge = "🆓" if course["free"] else "💰"
-        links_html += f"""
-        <a href="{course['url']}"
-           target="_blank"
-           class="learn-pill">
-           {badge} {course['provider']}
-        </a>"""
-    st.markdown(f"""
-    <div class="learning-card">
-        <div class="learning-header">
-            <h4>{rec["skill"]}</h4>
-            <div class="priority-pill">Skill Gap</div>
-        </div>
-        <div class="learning-links">{links_html}</div>
+if career_paths:
+    st.divider()
+    st.markdown("""
+    <div class="career-header">
+      <div class="emoji-bg">🛤️</div>
+      <h1>Rekomendasi Career Path</h1>
+      <p class="sub">5 jalur karir yang paling sesuai dengan profil CV kamu</p>
+      <div class="badge-row">
+        <span>Visualisasi jalur (FR-5.01)</span>
+      </div>
     </div>
     """, unsafe_allow_html=True)
+
+    cp_cols = st.columns(min(5, len(career_paths)) or 1)
+    for i, cp in enumerate(career_paths[:5]):
+        with cp_cols[i % len(cp_cols)]:
+            confidence = cp.get("confidence", 0)
+            st.markdown(
+                f'<div class="career-card">'
+                f'<div class="career-icon">🎯</div>'
+                f'<h3 class="career-title">{confidence}%</h3>'
+                f'<div class="career-job">{cp.get("career", "N/A")}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    # Alasan tiap rekomendasi (di bawah grid, supaya tidak terlalu sempit)
+    with st.expander("Lihat alasan tiap rekomendasi career path"):
+        for cp in career_paths[:5]:
+            st.markdown(f"**{cp.get('career', 'N/A')}** ({cp.get('confidence', 0)}%) — {cp.get('reason', '—')}")
+
+# ═══════════════════════════════════════════════════════════════
+# BAGIAN 3 — SKILL GAP (FR-5.02)
+# ═══════════════════════════════════════════════════════════════
+
+gap_analysis = result.get("gap_analysis", [])
+
+if gap_analysis:
+    st.divider()
+    st.markdown("""
+    <div class="career-header">
+      <div class="emoji-bg">🎯</div>
+      <h1>Skill Gap</h1>
+      <p class="sub">Skill yang perlu dikembangkan untuk tiap jalur karir</p>
+      <div class="badge-row">
+        <span>Gap analysis (FR-5.02)</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    gap_cols = st.columns(min(3, len(gap_analysis)) or 1)
+    for i, item in enumerate(gap_analysis[:3]):
+        missing_skills = item.get("missing_skills", [])
+        existing_skills = item.get("existing_skills", [])
+
+        gap_html = "".join(
+            f'<span class="skill-pill">{skill.get("skill", "?")} ({skill.get("priority", "—")})</span>'
+            for skill in missing_skills
+        )
+
+        with gap_cols[i % len(gap_cols)]:
+            st.markdown(
+                f'<div class="skill-card">'
+                f'<div class="skill-badge">{item.get("career", "N/A")}</div>'
+                f'<div class="skill-count">{len(missing_skills)} Skill Gaps</div>'
+                f'<div class="skill-jobs">✓ Sudah dikuasai: {", ".join(existing_skills) or "—"}</div>'
+                f'<div class="skill-gap-title">GAP (FR-5.02)</div>'
+                f'<div>{gap_html}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+# ═══════════════════════════════════════════════════════════════
+# BAGIAN 4 — SERTIFIKASI & LINK BELAJAR (FR-5.04)
+# ═══════════════════════════════════════════════════════════════
+
+certifications = result.get("certifications", [])
+
+if certifications:
+    section_lbl("Rekomendasi Link Belajar & Sertifikasi (FR-5.04)", "📚")
+
+    for rec in certifications:
+        links_html = ""
+        for course in rec.get("courses", []):
+            badge = "🆓" if course.get("free") else "💰"
+            links_html += (
+                f'<a href="{course.get("url", "#")}" target="_blank" class="learn-pill">'
+                f'{badge} {course.get("provider", "?")}</a>'
+            )
+        st.markdown(
+            f'<div class="learning-card">'
+            f'<div class="learning-header">'
+            f'<h4>{rec.get("skill", "N/A")}</h4>'
+            f'<div class="priority-pill">{rec.get("priority", "Skill Gap")}</div>'
+            f'</div>'
+            f'<div class="learning-links">{links_html}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+# ═══════════════════════════════════════════════════════════════
+# BAGIAN 5 — CAREER ROADMAP
+# ═══════════════════════════════════════════════════════════════
+
+career_roadmap = result.get("career_roadmap", {})
+phases = career_roadmap.get("phases", [])
+
+if phases:
+    section_lbl(f"Roadmap Menuju {career_roadmap.get('target_career', 'Karir Target')}", "🗺️")
+
+    roadmap_cols = st.columns(min(3, len(phases)) or 1)
+    for i, phase in enumerate(phases[:3]):
+        goals = phase.get("goals", [])
+        goals_html = "".join(f'<div class="career-job">• {g}</div>' for g in goals)
+
+        with roadmap_cols[i % len(roadmap_cols)]:
+            st.markdown(
+                f'<div class="career-card">'
+                f'<div class="career-icon">📈</div>'
+                f'<h3 class="career-title">{phase.get("phase", "—")}</h3>'
+                f'{goals_html}'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+    if career_roadmap.get("summary"):
+        st.markdown(
+            f'<div class="salary-info">💡 {career_roadmap["summary"]}</div>',
+            unsafe_allow_html=True,
+        )
