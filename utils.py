@@ -494,3 +494,130 @@ def job_card(job: dict) -> None:
         f'</div>',
         unsafe_allow_html=True,
     )
+
+
+# ─── HELPER: INTERVIEW — EKSPOR PDF (FR-6.05) ───────────────────
+
+def _latin1_safe(text: object) -> str:
+    """
+    Normalisasi teks agar aman dirender core font FPDF (latin-1).
+
+    Karakter tipografis umum (en/em dash, tanda kutip lengkung, panah,
+    bullet) diganti padanan ASCII; sisanya di luar latin-1 diganti '?'.
+    Mencegah UnicodeEncodeError saat menulis teks berbahasa Indonesia
+    atau jawaban pengguna yang memuat simbol/emoji.
+    """
+    if text is None:
+        return ""
+    s = str(text)
+    replacements = {
+        "–": "-", "—": "-", "•": "-", "→": "->", "←": "<-",
+        "’": "'", "‘": "'", "“": '"', "”": '"', "…": "...",
+        "✓": "v", "✗": "x", "≥": ">=", "≤": "<=",
+    }
+    for a, b in replacements.items():
+        s = s.replace(a, b)
+    return s.encode("latin-1", "replace").decode("latin-1")
+
+
+def build_interview_pdf(
+    job: dict,
+    cv_profile: dict,
+    history: list,
+    assessment: dict,
+) -> bytes | None:
+    """
+    Bangun PDF transkrip wawancara + penilaian (FR-6.05).
+
+    Import fpdf di dalam fungsi (lazy) mengikuti pola helper lain di modul
+    ini, sehingga halaman lain tidak wajib memiliki fpdf2 terpasang.
+
+    Args:
+        job: Lowongan terpilih (job_id, job_title, company_name).
+        cv_profile: Profil ringkas kandidat dari response start.
+        history: Daftar {question, answer, category}.
+        assessment: Hasil penilaian akhir (verdict, score, reasons, ...).
+
+    Returns:
+        Bytes PDF, atau None jika fpdf2 belum terinstall / gagal
+        (caller menyediakan fallback unduh teks).
+    """
+    try:
+        from fpdf import FPDF
+    except ImportError:
+        logger.warning(
+            "build_interview_pdf dilewati: fpdf2 tidak terinstall. "
+            "Jalankan: pip install fpdf2"
+        )
+        return None
+
+    try:
+        pdf = FPDF(format="A4")
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+
+        def write(text: object, height: float = 6) -> None:
+            """Tulis satu blok teks lebar penuh, kursor kembali ke margin kiri.
+
+            new_x/new_y eksplisit mencegah error 'Not enough horizontal space'
+            akibat kursor tertinggal di margin kanan setelah multi_cell(w=0).
+            """
+            pdf.multi_cell(0, height, _latin1_safe(text), new_x="LMARGIN", new_y="NEXT")
+
+        # Judul
+        pdf.set_font("Helvetica", "B", 16)
+        write("Transkrip Simulasi Wawancara", 9)
+        pdf.set_font("Helvetica", "", 10)
+        write(
+            f"Posisi: {job.get('job_title', '-')}  |  "
+            f"Perusahaan: {job.get('company_name', '-')}"
+        )
+        skills = ", ".join(cv_profile.get("key_skills", []) or []) or "-"
+        write(f"Skill kandidat: {skills}")
+        pdf.ln(3)
+
+        # Penilaian akhir (FR-6.04)
+        pdf.set_font("Helvetica", "B", 13)
+        write("Hasil Penilaian", 8)
+        pdf.set_font("Helvetica", "B", 11)
+        verdict = assessment.get("verdict", "-")
+        score = assessment.get("score", "-")
+        write(f"Verdict: {verdict}   (Skor: {score}/100)", 7)
+
+        for label, key in (("Alasan", "reasons"),
+                           ("Kelebihan", "strengths"),
+                           ("Perlu ditingkatkan", "improvements")):
+            items = assessment.get(key, []) or []
+            if not items:
+                continue
+            pdf.set_font("Helvetica", "B", 10)
+            write(f"{label}:")
+            pdf.set_font("Helvetica", "", 10)
+            for it in items:
+                write(f"  - {it}")
+        pdf.ln(2)
+
+        # Transkrip Q&A (FR-6.05)
+        pdf.set_font("Helvetica", "B", 13)
+        write("Transkrip Tanya-Jawab", 8)
+        per_q = {i: pq for i, pq in enumerate(assessment.get("per_question", []) or [])}
+        for i, turn in enumerate(history):
+            cat = turn.get("category", "")
+            cat_txt = f" [{cat}]" if cat else ""
+            pdf.set_font("Helvetica", "B", 10)
+            write(f"Q{i + 1}{cat_txt}: {turn.get('question', '')}")
+            pdf.set_font("Helvetica", "", 10)
+            write(f"Jawaban: {turn.get('answer', '')}")
+            fb = per_q.get(i, {})
+            if fb.get("feedback"):
+                pdf.set_font("Helvetica", "I", 9)
+                fb_score = fb.get("score")
+                score_txt = f" (nilai {fb_score}/10)" if fb_score is not None else ""
+                write(f"Catatan{score_txt}: {fb['feedback']}", 5)
+            pdf.ln(1)
+
+        return bytes(pdf.output())
+
+    except Exception as exc:                            # noqa: BLE001
+        logger.error("build_interview_pdf gagal: %s", exc)
+        return None
