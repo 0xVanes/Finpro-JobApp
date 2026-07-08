@@ -29,10 +29,29 @@ Gabungan **`job_title` + `job_description`**:
 Judul disertakan karena query pengguna sering menyebut nama peran ("data analyst",
 "HR staff") sementara deskripsi tidak selalu mengulang nama posisi secara eksplisit.
 
-## Payload (metadata untuk filter hybrid)
+Teks yang sama juga **disimpan apa adanya di payload `content`** (via `build_content`
+pada notebook) sehingga satu sumber teks dipakai untuk embedding sekaligus dibaca
+kembali oleh retriever — lihat bagian Payload.
 
-Field terstruktur disimpan di payload agar bisa dipakai sebagai filter bersamaan
-dengan pencarian semantik:
+## Payload
+
+Payload menyimpan **teks dokumen** untuk RAG sekaligus **field terstruktur** untuk
+filter hybrid. Strukturnya mengikuti format node **Qdrant Vector Store** di n8n
+(LangChain), yang membaca `content` sebagai isi dokumen dan `metadata` sebagai
+atributnya:
+
+| Key | Tipe | Guna |
+|---|---|---|
+| `content` | string | **Teks dokumen** (`job_title` + `job_description`) — isi yang dibaca agent RAG di n8n; identik dengan teks yang di-embed |
+| `metadata` | object | Salinan seluruh field terstruktur di bawah — dibaca LangChain sebagai metadata dokumen |
+
+> **Penting:** tanpa `content`, retriever LangChain menerima dokumen tanpa teks,
+> sehingga agent RAG selalu menjawab "tidak ditemukan" meski vektornya cocok.
+> Field `content`/`metadata` adalah **kontrak** yang dibaca workflow n8n — bila
+> notebook di-ingest ulang, keduanya harus tetap dihasilkan `make_payload`.
+
+Field terstruktur juga di-**flatten** di level atas payload (di luar `metadata`)
+agar bisa dipakai langsung sebagai `query_filter` Qdrant tanpa menembus objek:
 
 | Field | Tipe | Guna |
 |---|---|---|
@@ -47,6 +66,24 @@ dengan pencarian semantik:
 | `salary_min` | int | filter gaji |
 | `salary_max` | int | filter gaji |
 | `is_salary_estimated` | bool | menandai gaji hasil estimasi model |
+
+Contoh payload satu titik:
+
+```json
+{
+  "content": "Social Media Specialist\nKey Responsibilities: Merancang strategi ...",
+  "metadata": {
+    "job_id": "0052b191-...", "job_title": "Social Media Specialist",
+    "company_name": "PT Vita Shopindo", "city": "Jakarta Barat", "province": "Jakarta Raya",
+    "work_type": "Full-time", "work_arrangement": "Onsite", "seniority_level": "Senior",
+    "salary_min": 6666666, "salary_max": 7777777, "is_salary_estimated": false
+  },
+  "job_id": "0052b191-...", "job_title": "Social Media Specialist", "city": "Jakarta Barat"
+}
+```
+
+> Field terstruktur muncul dua kali: di dalam `metadata` (untuk LangChain) dan
+> di level atas (untuk `query_filter`). Contoh di atas dipersingkat pada bagian flat.
 
 ## Idempotency & resume
 

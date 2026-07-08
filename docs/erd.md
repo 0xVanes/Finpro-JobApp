@@ -29,6 +29,10 @@ erDiagram
 > `jobs` berdiri sendiri di MySQL, tetapi `job_id` juga menjadi **`point_id` di Qdrant**
 > (lihat [`qdrant.md`](qdrant.md)) — inilah jembatan antara pencarian semantik dan data
 > terstruktur. Bukan foreign key SQL, melainkan kunci lintas-basis-data.
+>
+> Selain `job_id`, kolom `job_description` juga mengalir ke Qdrant: `job_title` +
+> `job_description` menjadi teks yang di-embed **dan** disimpan di payload `content`
+> (dokumen sumber RAG). Field terstruktur lain disalin ke `metadata` payload.
 
 ## Definisi kolom
 

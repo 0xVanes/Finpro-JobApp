@@ -28,10 +28,12 @@ import streamlit as st
 # ─── KONSTANTA KONFIGURASI (NFR-4.03) ───────────────────────────
 # Semua nilai sensitif dari st.secrets / environment variable
 # Tidak ada credential yang di-hardcode di sini
-from dotenv import find_dotenv
-find_dotenv()
+# Muat .env secara eksplisit di sini agar N8N_WEBHOOK_URL tersedia tanpa
+# bergantung pada urutan import halaman. find_dotenv() menelusuri ke atas
+# dari cwd untuk menemukan .env di root repo.
+from dotenv import find_dotenv, load_dotenv
+load_dotenv(find_dotenv(), override=True)
 N8N_WEBHOOK_URL: str = os.environ.get("N8N_WEBHOOK_URL")
-print(N8N_WEBHOOK_URL)
 # Satu logger per modul — tidak pakai print() untuk error internal
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -41,7 +43,7 @@ logging.basicConfig(
 
 # Timeout (detik) per jenis request sesuai NFR-2
 TIMEOUT_CHAT:  int = 15   # NFR-2.01 RAG chat ≤ 15 s
-TIMEOUT_SQL:   int = 5    # NFR-2.02 SQL filter ≤ 5 s
+TIMEOUT_SQL:   int = 40   # SQL Search Agent (LLM + MySQL tool) butuh ~34s
 TIMEOUT_CV:    int = 80   # NFR-2.03 CV extract ≤ 30 s
 TIMEOUT_OTHER: int = 20   # Default untuk mode lainnya
 
