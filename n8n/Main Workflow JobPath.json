@@ -92,6 +92,27 @@
                 ],
                 "combinator": "and"
               }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.mode }}",
+                    "rightValue": "interview",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
             }
           ]
         },
@@ -215,7 +236,7 @@
         "promptType": "define",
         "text": "=Cari lowongan dengan kriteria: keyword={{ $json.body.keyword }}, work_type={{ $json.body.work_type }}, city={{ $json.body.city }}, salary_min={{ $json.body.salary_min }}, hybrid_only={{ $json.body.hybrid_only }}",
         "options": {
-          "systemMessage": "=Kamu agent SQL. Buat query SELECT dari tabel jobs (kolom: job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 20.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title LIKE '%keyword%'\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: city LIKE '%kota%'\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Tipe kerja: work_type = 'nilai' (kosongkan kalau user pilih \"Semua\")\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}"
+          "systemMessage": "=Kamu agent SQL. Buat query SELECT dari tabel jobs (kolom: job_id, job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 20.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title LIKE '%keyword%'\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: city LIKE '%kota%'\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Tipe kerja: work_type = 'nilai' (kosongkan kalau user pilih \"Semua\")\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_id\":\"...\",\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}\n\nWAJIB: sertakan kolom job_id pada SELECT query utama DAN pada setiap objek di array jobs (key \"job_id\"). job_id dipakai fitur wawancara untuk mengambil deskripsi lowongan."
         }
       },
       "id": "017c39fd-065a-40df-b339-8b1c6ea1b5b3",
@@ -459,6 +480,50 @@
         992
       ],
       "notes": "PENTING: setelah import, buka node ini dan pilih ulang workflow 'Career Development Pipeline (Sub-workflow)' dari dropdown Workflow -> Database, karena workflowId tidak bisa diisi otomatis (ID-nya baru terbentuk setelah sub-workflow diimport ke instance n8n kamu)."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "6interviewSUB01",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/6interviewSUB01",
+          "cachedResultName": "6 - Interview (Sub-workflow)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "data": "={{ $json.body }}"
+          },
+          "matchingColumns": [
+            "data"
+          ],
+          "schema": [
+            {
+              "id": "data",
+              "displayName": "data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "object",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": true,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "9d888f42-1e93-47c1-b9d3-d06b7a98f58c",
+      "name": "Interview Pipeline",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -360,
+        1560
+      ],
+      "notes": "PENTING: setelah import, buka node ini dan pilih ulang workflow '6 - Interview (Sub-workflow)' dari dropdown Workflow -> Database, karena workflowId baru terbentuk setelah 6-interview.json diimport."
     }
   ],
   "pinData": {},
@@ -493,6 +558,13 @@
         [
           {
             "node": "CV Matcher Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Interview Pipeline",
             "type": "main",
             "index": 0
           }
@@ -669,6 +741,17 @@
         [
           {
             "node": "Combine CV Full Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Interview Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Respond to Streamlit",
             "type": "main",
             "index": 0
           }

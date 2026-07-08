@@ -35,4 +35,7 @@ openai
 # ── Autentikasi login (app.py) ───────────────────────────────
 bcrypt>=4.1.0
 
+# ── Ekspor PDF (pages/6interview.py — FR-6.05) ───────────────
+fpdf2
+
 
