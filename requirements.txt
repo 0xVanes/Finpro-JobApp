@@ -17,6 +17,8 @@ python-dotenv
 python-docx
 pypdf
 plotly
+pymupdf
+pillow
 
 # --- Databases (dipakai di notebook ingestion nanti) ---
 pymysql
@@ -29,3 +31,8 @@ joblib
 
 # --- LLM / embeddings ---
 openai
+
+# ── Autentikasi login (app.py) ───────────────────────────────
+bcrypt>=4.1.0
+
+
