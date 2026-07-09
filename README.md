@@ -8,7 +8,7 @@
 
 ![Frontend](https://img.shields.io/badge/frontend-Streamlit-red)
 ![Backend](https://img.shields.io/badge/backend-n8n-orange)
-![Database](https://img.shields.io/badge/database-Aiven%20PostgreSQL-316192)
+![Database](https://img.shields.io/badge/database-Aiven%20MySQL-316192)
 ![VectorDB](https://img.shields.io/badge/vector%20DB-Qdrant-DC244C)
 
 ![AI](https://img.shields.io/badge/AI-OpenAI%20GPT-purple)
@@ -21,9 +21,6 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB)
 ![OpenAI](https://img.shields.io/badge/OpenAI-API-412991)
-
-![Contributions](https://img.shields.io/badge/contributions-welcome-brightgreen)
-![PRs](https://img.shields.io/badge/PRs-welcome-success)
 
 ---
 
