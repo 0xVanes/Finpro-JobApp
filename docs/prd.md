@@ -58,6 +58,8 @@ FR-5.03: Sistem dapat memberikan rekomendasi skill yang harus dikembangkan.
 
 FR-5.04: Sistem dapat memberikan rekomendasi tautan/situs pembelajaran atau sertifikasi spesifik untuk menutup Skill Gap tersebut.
 
+FR-5.05: Sistem dapat memberikan rekomendasi rencana karir untuk membimbing user melalui fase pembelajaran yang terstruktur dan pencapaian sertifikasi selama 0-12 bulan.
+
 ### 6. Fitur: Simulasi Wawancara (Brainstorming)
 
 FR-6.01: Pengguna dapat memilih mode "Latihan Interview" untuk posisi tertentu.
@@ -76,13 +78,9 @@ FR-7.01: Sistem menampilkan visualisasi statistik/grafik skill pekerjaan yang se
 
 FR-7.02: Sistem menampilkan grafik distribusi gaji rata-rata berdasarkan bidang pekerjaan.
 
-### 8. Fitur: Manajemen Data Tambahan & Komunitas (Brainstorming)
+### 8. Fitur: Manajemen Data Tambahan (Brainstorming)
 
 FR-8.01: Sistem memiliki ML Model tersendiri (Regresi) untuk memprediksi dan mengisi nilai gaji yang kosong (None) pada dataset, sehingga rentang gaji selalu tersedia.
-
-FR-8.02: Sistem dapat membuat/generate desain CV (Auto-generate CV) berdasarkan profil pengguna, yang bisa diunduh sebagai PDF.
-
-FR-8.03: Pengguna dapat menambahkan data lowongan pekerjaan baru (Add Data Job) ke dalam database SQL.
 
 ## B. NON-FUNCTIONAL REQUIREMENTS (Kebutuhan Non-Fungsional)
 
@@ -106,7 +104,7 @@ NFR-2.01: Waktu respons dari agen RAG untuk menjawab pertanyaan chat maksimal ti
 
 NFR-2.02: Pencarian filter SQL harus mengembalikan data ke UI Streamlit dalam waktu maksimal 5 detik.
 
-NFR-2.03: Proses ekstraksi PDF CV tidak boleh memakan waktu lebih dari 30 detik untuk mencegah Webhook Timeout di N8N.
+NFR-2.03: Proses ekstraksi PDF CV tidak boleh memakan waktu lebih dari 50 detik untuk mencegah Webhook Timeout di N8N.
 
 ### 3. Usability & User Experience (Penilaian 10% di Rubrik)
 
