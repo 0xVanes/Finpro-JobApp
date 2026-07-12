@@ -1,5 +1,5 @@
 {
-  "name": "Career Development Pipeline (Sub-workflow)",
+  "name": "career",
   "nodes": [
     {
       "parameters": {
@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "8aabb62b-b153-4d36-b668-feb588f7cb37",
+      "id": "854f7ec7-6e4a-498f-aa82-edd4c65c6260",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        224,
-        -112
+        0,
+        0
       ]
     },
     {
@@ -29,13 +29,13 @@
           "systemMessage": "You are a senior career advisor for the Indonesian job market.\n\nCONTEXT\nThe user message contains a JSON object with the candidate's profile and job recommendations, produced by a CV matching step.\n\nTASK\n1. Analyze the candidate_profile and recommendations in the input.\n2. Identify the top 5 career paths best suited to this candidate.\n3. For each career path, assign a confidence score (0-100) reflecting how well it fits the candidate's current skills and experience.\n4. Write a short, specific reason for each recommendation - reference actual skills or experience from the input, not generic statements.\n\nOUTPUT FORMAT\nReturn valid JSON only. No markdown code fences, no explanation text before or after the JSON.\n\n{\n  \"career_paths\": [\n    { \"career\": \"...\", \"confidence\": 0, \"reason\": \"...\" }\n  ]\n}\n\nLANGUAGE RULE\n- JSON keys (career_paths, career, confidence, reason) must stay in English exactly as shown.\n- All text VALUES (the career name and the reason) must be written in Bahasa Indonesia."
         }
       },
-      "id": "b812bab2-e365-490b-b1a8-bcdee3d27211",
+      "id": "c2eb6e82-12a3-4b67-aaa6-0b2de62fefa4",
       "name": "Career Path Classification",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        464,
-        -112
+        240,
+        0
       ]
     },
     {
@@ -48,18 +48,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "05d7b8a5-fc49-4aeb-8555-38678ec50f8c",
+      "id": "c286b99d-c05b-4210-a74c-e12d436fdab4",
       "name": "Career Path Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        448,
-        80
+        224,
+        192
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -75,18 +75,18 @@
         "returnAll": true,
         "options": {}
       },
-      "id": "04d3177e-c8d8-47c2-b8b7-2f29d7b3f725",
+      "id": "ccd64462-3980-4389-96c1-325d97941651",
       "name": "from table jobs",
       "type": "n8n-nodes-base.mySqlTool",
       "typeVersion": 2.5,
       "position": [
-        592,
-        80
+        368,
+        192
       ],
       "credentials": {
         "mySql": {
-          "id": "Ss3clhPtjNQ6Ltp0",
-          "name": "MySQL account"
+          "id": "OMrYs9kw3nfvgWIq",
+          "name": "Aiven Yusuf"
         }
       }
     },
@@ -96,13 +96,13 @@
         "text": "You are a skills gap analyst.\n\nCONTEXT\nThe user message contains the output from a previous step: a list of\nrecommended career paths for a candidate, along with confidence scores and reasons.\n\n{{ $json.output }}\n\nCANDIDATE EXPERIENCE\n- Current role: {{ $('Execute Workflow Trigger').item.json.data.current_role }}\n- Years of experience: {{ $('Execute Workflow Trigger').item.json.data.experience_years }}\n\nTASK\nFor each recommended career path:\n1. List the key skills typically required for that career (required_skills).\n2. Identify which of those skills the candidate already has, based on their\n   profile (existing_skills).\n3. Identify the gap - skills the candidate is missing (missing_skills) - and\n   assign a priority to each: \"High\", \"Medium\", or \"Low\".\n\nEXPERIENCE-AWARE RULE\n- If the candidate has 5+ years of experience, focus the gap on strategic,\n  leadership, or specialized skills - NOT basic fundamentals they would\n  already know at their seniority level.\n- If the candidate has less than 2 years of experience, foundational/entry-level\n  skill gaps are appropriate and expected.\n- For 2-5 years, balance between foundational depth and early specialization.\n\nOUTPUT FORMAT\nReturn valid JSON only. No markdown code fences, no explanation text before or after the JSON.\n\n{\n  \"careers\": [\n    {\n      \"career\": \"...\",\n      \"required_skills\": [\"...\"],\n      \"existing_skills\": [\"...\"],\n      \"missing_skills\": [\n        { \"skill\": \"...\", \"priority\": \"High\" }\n      ]\n    }\n  ]\n}\n\nLANGUAGE RULE\n- JSON keys must stay in English exactly as shown.\n- All text VALUES must be written in Bahasa Indonesia.",
         "options": {}
       },
-      "id": "6b44937f-d5c1-4ec9-9db9-dc46a890d0c9",
+      "id": "14e4a930-cb57-4939-9a37-107aba9df9e1",
       "name": "Gap Analysis",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        704,
-        -112
+        480,
+        0
       ]
     },
     {
@@ -115,18 +115,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "a3b49894-1cc1-4e44-9d6a-98796f163fb9",
+      "id": "5ae6a699-df3e-4b1d-847d-04d70b527833",
       "name": "Gap Analysis Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        736,
-        80
+        512,
+        192
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -136,13 +136,13 @@
         "text": "=You are a learning and development advisor.\n\nCONTEXT\nThe user message contains a skill gap analysis: a list of careers, each with\nmissing skills and their priority (High/Medium/Low).\n\n{{ $json.output }}\n\nCANDIDATE EXPERIENCE\nYears of experience: {{ $('Execute Workflow Trigger').item.json.data.experience_years }}\n\nTASK\n1. Process skills in priority order - High priority first, then Medium, then Low.\n2. For each missing skill, use the \"Select Certifications from SQL\" tool to\n   search the internal database for relevant certifications or courses.\n3. If the database has no suitable result for a skill, recommend a well-known,\n   legitimate external certification instead, and set \"source\" to \"external\".\n   If the result came from the database, set \"source\" to \"database\".\n\nEXPERIENCE-AWARE RULE\n- If experience_years >= 5: prefer intermediate/advanced/professional-level\n  courses. AVOID recommending courses explicitly labeled \"dasar\", \"pemula\",\n  \"beginner\", or \"introduction to\" unless no other option exists - a senior\n  professional needs depth, not basics.\n- If experience_years < 2: beginner/foundational courses are appropriate.\n- If a course title suggests the wrong level for the candidate's experience,\n  either skip it or clearly note in context that it should be used only as\n  a quick refresher, not core learning.\n\nOUTPUT FORMAT\nReturn valid JSON only. No markdown code fences, no explanation text before or after the JSON.\n\n{\n  \"recommendations\": [\n    {\n      \"skill\": \"...\",\n      \"priority\": \"High\",\n      \"courses\": [\n        { \"title\": \"...\", \"provider\": \"...\", \"url\": \"...\", \"free\": true, \"source\": \"database\" }\n      ]\n    }\n  ]\n}\n\nLANGUAGE RULE\n- JSON keys must stay in English exactly as shown.\n- Course titles/providers may stay in original language.\n- Any additional descriptive text must be written in Bahasa Indonesia.",
         "options": {}
       },
-      "id": "46ad4f32-9d14-4a16-8453-37cfdaefdea3",
+      "id": "8dc377a7-b2d9-48e0-9937-13ad8f581e8d",
       "name": "Recommend Certification",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        944,
-        -112
+        720,
+        0
       ]
     },
     {
@@ -156,18 +156,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "31c2d4f1-4f82-4686-87d5-c1d217081792",
+      "id": "0accca0c-17cc-47c9-abf9-73ff4f5f89d5",
       "name": "Certification Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        928,
-        80
+        704,
+        192
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -182,18 +182,18 @@
         },
         "options": {}
       },
-      "id": "7eb9804f-54ac-407c-ad00-55a5bf4a5edb",
+      "id": "151f4476-1091-4414-9a3c-48fc6f257ba4",
       "name": "Select Certifications from SQL",
       "type": "n8n-nodes-base.mySqlTool",
       "typeVersion": 2.5,
       "position": [
-        1088,
-        80
+        864,
+        192
       ],
       "credentials": {
         "mySql": {
-          "id": "Ss3clhPtjNQ6Ltp0",
-          "name": "MySQL account"
+          "id": "70JgGBGTe9WM24aS",
+          "name": "MySQL account 2"
         }
       }
     },
@@ -203,13 +203,13 @@
         "text": "You are a career roadmap planner.\n\nCONTEXT\nGap analysis:\n{{ $('Gap Analysis').item.json.output }}\n\nCertification recommendations:\n{{ $json.output }}\n\nTASK\n1. Choose the single best-fit target career from the gap analysis.\n2. Build a phased roadmap with exactly 3 phases: \"0-3 Months\", \"3-6 Months\", \"6-12 Months\".\n3. For each phase, define: goals, certifications (from the recommended list that fit this phase), and milestones.\n4. Write a short overall summary (2-3 sentences).\n\nOUTPUT FORMAT\nReturn valid JSON only. No markdown code fences, no explanation text before or after the JSON.\n\n{\n  \"career_roadmap\": {\n    \"target_career\": \"...\",\n    \"phases\": [\n      { \"phase\": \"0-3 Months\", \"goals\": [\"...\"], \"certifications\": [\"...\"], \"milestones\": [\"...\"] }\n    ],\n    \"summary\": \"...\"\n  }\n}\n\nLANGUAGE RULE\n- JSON keys must stay in English exactly as shown.\n- All text VALUES must be written in Bahasa Indonesia.",
         "options": {}
       },
-      "id": "30589b5a-1c20-45af-a669-ce34efe97cef",
+      "id": "0ea5e4a2-33b9-4922-8552-225b9f27f1d3",
       "name": "Career Roadmap Generator",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1184,
-        -112
+        960,
+        0
       ]
     },
     {
@@ -222,18 +222,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "4b8c5e7a-7407-44c1-9cef-194d4ccef4f2",
+      "id": "720cab91-78d8-4c1c-9c8c-1ee865a84100",
       "name": "Roadmap Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1248,
-        96
+        1024,
+        208
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -241,13 +241,13 @@
       "parameters": {
         "jsCode": "function safeParse(raw, fallback) {\n  try {\n    const cleaned = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();\n    return JSON.parse(cleaned);\n  } catch (e) { return fallback; }\n}\n\nconst careerPathsRaw = safeParse($('Career Path Classification').first().json.output, { career_paths: [] });\nconst gapRaw = safeParse($('Gap Analysis').first().json.output, { careers: [] });\nconst certRaw = safeParse($('Recommend Certification').first().json.output, { recommendations: [] });\nconst roadmapRaw = safeParse($input.first().json.output, { career_roadmap: {} });\n\nreturn [{\n  json: {\n    career_paths: careerPathsRaw.career_paths || [],\n    gap_analysis: gapRaw.careers || [],\n    certifications: certRaw.recommendations || [],\n    career_roadmap: roadmapRaw.career_roadmap || {},\n  }\n}];"
       },
-      "id": "9a9c55e1-8316-49aa-a9e7-ad2989933dac",
+      "id": "3f4a82b6-22e2-4c5b-94f2-c54d60d41eb8",
       "name": "Combine Career Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1424,
-        -112
+        1200,
+        0
       ]
     }
   ],
@@ -378,14 +378,13 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "cda8198e-3505-4043-8f3c-47f49c1c81f7",
+  "versionId": "4e4e4c17-7a1c-4eb0-9725-93491897e1b6",
   "meta": {
-    "instanceId": "0be89bab40da54884f818ca49d8dd593209a96a379190b97ff43adad4121c4b9"
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"
   },
-  "nodeGroups": [],
-  "id": "KM1Megwr05ard5m8",
+  "id": "B8gQ5QlrlBvTY5dU",
   "tags": []
 }

@@ -1,5 +1,5 @@
 {
-  "name": "6 - Interview (Sub-workflow)",
+  "name": "inter",
   "nodes": [
     {
       "parameters": {
@@ -12,13 +12,13 @@
           ]
         }
       },
-      "id": "c65d8e74-2322-4c36-a633-c1ef17dfce94",
+      "id": "4cdb9be6-b031-45c0-8f39-e1988e433753",
       "name": "Execute Workflow Trigger",
       "type": "n8n-nodes-base.executeWorkflowTrigger",
       "typeVersion": 1.1,
       "position": [
-        -200,
-        360
+        -496,
+        272
       ]
     },
     {
@@ -92,13 +92,13 @@
         },
         "options": {}
       },
-      "id": "fa13e9dd-1b2c-48cf-aad6-c8e2e20f7642",
+      "id": "3fb15ef6-5472-4196-a4ce-aa2547bef4c8",
       "name": "Route by Action",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        40,
-        360
+        -256,
+        272
       ]
     },
     {
@@ -107,18 +107,18 @@
         "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
         "options": {}
       },
-      "id": "f6c58f0c-d576-403e-a6b8-548f0abb2074",
+      "id": "46edc26d-3fa0-4107-be2b-04e11c568cdf",
       "name": "Get Job (start)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        300,
-        100
+        0,
+        0
       ],
       "credentials": {
         "mySql": {
-          "id": "Ss3clhPtjNQ6Ltp0",
-          "name": "MySQL account"
+          "id": "OMrYs9kw3nfvgWIq",
+          "name": "Aiven Yusuf"
         }
       }
     },
@@ -130,13 +130,13 @@
           "systemMessage": "Kamu perancang wawancara profesional. Berdasarkan CV kandidat dan deskripsi lowongan, susun rencana wawancara berupa 4-6 POIN INTI (kompetensi/topik) paling penting untuk menilai kandidat pada lowongan ini. Entry-level cukup 4 poin; mid/senior 5-6 poin. Urutkan mulai dari pembuka yang wajar. Buat juga profil ringkas kandidat, lalu pertanyaan PERTAMA untuk poin ke-1 dengan nada hangat dan manusiawi (boleh menyapa nama).\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"cv_profile\":{\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]},\"plan\":[{\"index\":1,\"point\":\"...\",\"category\":\"technical\"}],\"total_points\":5,\"current_point_index\":1,\"question\":\"...\",\"category\":\"technical\"}"
         }
       },
-      "id": "c36c4e9e-635d-42b8-87c5-c86cd264178c",
+      "id": "40ad6319-0035-41eb-b3ee-417b698dbbc6",
       "name": "Planner Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        540,
-        100
+        240,
+        0
       ]
     },
     {
@@ -149,18 +149,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "b2f8ffdc-9c5f-4358-9c6d-f6983ee71865",
+      "id": "ba6ec7dc-5466-425a-a26c-7a638654d404",
       "name": "Planner Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        540,
-        260
+        240,
+        160
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -168,13 +168,13 @@
       "parameters": {
         "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nlet p = parse($input.first().json.output ?? $input.first().json.text ?? '');\nif(!p) p = { error: '⚠️ Gagal menyusun rencana wawancara, coba lagi.' };\nif(p.plan && !p.total_points) p.total_points = p.plan.length;\nif(!p.current_point_index) p.current_point_index = 1;\nreturn [{ json: p }];"
       },
-      "id": "48b6d70e-93a7-4308-9f3d-2b8448e1882b",
+      "id": "23950535-1fed-4027-af43-9d3262c1539f",
       "name": "Parse Planner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        100
+        480,
+        0
       ]
     },
     {
@@ -183,18 +183,18 @@
         "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
         "options": {}
       },
-      "id": "e523f649-07cb-4b1e-8735-a5e452e0db99",
+      "id": "daf81808-1a46-4a00-b944-c7a8d39603bf",
       "name": "Get Job (answer)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        300,
-        360
+        0,
+        272
       ],
       "credentials": {
         "mySql": {
-          "id": "Ss3clhPtjNQ6Ltp0",
-          "name": "MySQL account"
+          "id": "OMrYs9kw3nfvgWIq",
+          "name": "Aiven Yusuf"
         }
       }
     },
@@ -206,13 +206,13 @@
           "systemMessage": "Kamu penilai wawancara. Nilai apakah POIN INTI yang sedang dibahas SUDAH cukup terjawab oleh kandidat, berdasarkan riwayat tanya-jawab pada poin tersebut (item history punya field point_index). Nilai substansi jawaban, bukan panjangnya. Bersikap wajar: satu-dua jawaban solid sudah cukup.\n\nKembalikan HANYA JSON valid: {\"point_satisfied\": true, \"reason\": \"...\"}"
         }
       },
-      "id": "3e9766a5-c007-4ead-80a8-6f22d224c317",
+      "id": "602d4567-3480-4edd-9fa3-1d14de6d7cdd",
       "name": "Monitor Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        540,
-        360
+        240,
+        272
       ]
     },
     {
@@ -225,18 +225,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "ceba956b-78f4-48d3-bb43-3729179d1c80",
+      "id": "dca3bba6-d1a1-4b05-89f0-b2351e62708c",
       "name": "Monitor Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        540,
-        520
+        240,
+        432
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -244,13 +244,13 @@
       "parameters": {
         "jsCode": "const t = $('Execute Workflow Trigger').first().json.data;\nconst mon = $input.first().json;\nconst satisfied = mon.point_satisfied === true;\nconst K = Number(t.total_points) || (t.plan ? t.plan.length : 0);\nlet idx = Number(t.current_point_index) || 1;\nlet qc = Number(t.point_qcount) || 1;\nconst CAP = 5;\nlet done = false;\nif (satisfied || qc >= CAP) { idx = idx + 1; qc = 1; if (idx > K) done = true; }\nelse { qc = qc + 1; }\nconst target = (!done && t.plan && t.plan[idx-1]) ? t.plan[idx-1] : null;\nreturn [{ json: { done, current_point_index: idx, point_qcount: qc,\n  point_satisfied: satisfied, total_points: K, target_point: target } }];"
       },
-      "id": "102f6bca-db11-4dd0-9d7f-d8ac213eccfe",
+      "id": "bd7e53f5-76dd-414c-b169-d3543414dbc2",
       "name": "Decide",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        360
+        480,
+        272
       ]
     },
     {
@@ -278,13 +278,13 @@
         },
         "options": {}
       },
-      "id": "853dd261-b4db-4fdc-9c61-9898ddb63008",
+      "id": "be1d8fe3-9150-42d2-abc3-4e2efa17a3bc",
       "name": "IF Done",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1180,
-        340
+        880,
+        240
       ]
     },
     {
@@ -295,13 +295,13 @@
           "systemMessage": "Kamu pewawancara profesional yang hangat dan manusiawi, BUKAN mesin penembak pertanyaan. Pertama beri TANGGAPAN singkat dan natural atas jawaban TERAKHIR kandidat -- akui hal SPESIFIK yang mereka sebutkan (hindari pujian generik seperti 'bagus'). Lalu ajukan SATU pertanyaan berikutnya untuk poin inti yang dituju. Nada percakapan, Bahasa Indonesia, ringkas dan tidak kaku.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"reaction\":\"...\",\"question\":\"...\",\"category\":\"technical\"}"
         }
       },
-      "id": "f228d673-04bb-4a0d-b206-7b33365cb344",
+      "id": "5fcb1292-2d97-4931-8b9e-3987565f7a2d",
       "name": "Questioner Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        1400,
-        420
+        1104,
+        320
       ]
     },
     {
@@ -314,18 +314,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "16ccc577-61f5-47f3-8b26-3d6d92b70862",
+      "id": "06432534-f8aa-45e5-a30e-1be062b8b981",
       "name": "Questioner Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1400,
-        580
+        1104,
+        480
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -333,46 +333,46 @@
       "parameters": {
         "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nconst q = parse($input.first().json.output ?? $input.first().json.text ?? '') || {};\nconst d = $('Decide').first().json;\nreturn [{ json: { done:false, current_point_index:d.current_point_index,\n  point_qcount:d.point_qcount, point_satisfied:d.point_satisfied,\n  reaction:q.reaction||'', question:q.question||'',\n  category:q.category||(d.target_point?d.target_point.category:'technical') } }];"
       },
-      "id": "c83afc1c-6763-425f-baf1-72748f9b05bd",
+      "id": "0632dd6c-4e8a-4928-a048-21d2c171c066",
       "name": "Parse Question",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1660,
-        420
+        1360,
+        320
       ]
     },
     {
       "parameters": {
         "jsCode": "const d = $('Decide').first().json;\nreturn [{ json: { done:true, current_point_index:d.current_point_index,\n  total_points:d.total_points } }];"
       },
-      "id": "83d3f2fc-29f3-4dc7-8a03-cdcba38f24de",
+      "id": "620c4de6-8250-4c05-9890-d4e94bd64ccd",
       "name": "Parse Done",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1400,
-        240
+        1104,
+        144
       ]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=SELECT job_title, company_name, job_description FROM jobs WHERE job_id = '{{ $json.data.job_id }}' LIMIT 1;",
+        "query": "=SELECT job_id, job_title, company_name, job_description FROM jobs WHERE job_title = '{{ $json.data.job_title }}' LIMIT 1;",
         "options": {}
       },
-      "id": "0ba82430-215e-4aa2-a814-d7c16eb6b452",
+      "id": "8219ea2b-0065-47e4-82f3-49f531d13b53",
       "name": "Get Job (assess)",
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.4,
       "position": [
-        300,
-        640
+        0,
+        544
       ],
       "credentials": {
         "mySql": {
-          "id": "Ss3clhPtjNQ6Ltp0",
-          "name": "MySQL account"
+          "id": "OMrYs9kw3nfvgWIq",
+          "name": "Aiven Yusuf"
         }
       }
     },
@@ -384,13 +384,13 @@
           "systemMessage": "Kamu penilai wawancara (hiring assessor) yang objektif untuk lowongan di atas. Nilai kelayakan kandidat berdasarkan jawaban dan kecocokan dengan deskripsi lowongan serta cakupan tiap poin inti dalam rencana wawancara.\n\nKembalikan HANYA JSON valid, tanpa teks lain, tanpa markdown fence:\n{\"verdict\":\"Bisa Diterima\",\"score\":78,\"reasons\":[\"...\"],\"strengths\":[\"...\"],\"improvements\":[\"...\"],\"per_question\":[{\"question\":\"...\",\"feedback\":\"...\",\"score\":8}]}"
         }
       },
-      "id": "280a9615-c143-44b7-9480-126579f8c8ba",
+      "id": "e51f7000-10c8-43dc-8a92-74ebb2e747cc",
       "name": "Assessor Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        540,
-        640
+        448,
+        544
       ]
     },
     {
@@ -403,18 +403,18 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "0efc809e-8c72-449e-9fa2-94fc7672bdd0",
+      "id": "9c4499f9-543b-40de-8faa-7be7a346b154",
       "name": "Assessor Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        540,
-        800
+        448,
+        704
       ],
       "credentials": {
         "openAiApi": {
-          "id": "qYuDOl5p3ROZbNOy",
-          "name": "OpenAI account"
+          "id": "NYiiRxFJrsrOU4tg",
+          "name": "OpenAi account"
         }
       }
     },
@@ -422,13 +422,13 @@
       "parameters": {
         "jsCode": "function parse(raw){try{return JSON.parse(String(raw).replace(/```json/gi,'').replace(/```/g,'').trim());}catch(e){const m=String(raw).match(/\\{[\\s\\S]*\\}/);if(m){try{return JSON.parse(m[0]);}catch(e2){}}return null;}}\nlet p = parse($input.first().json.output ?? $input.first().json.text ?? '');\nif(!p) p = { error: '⚠️ Format penilaian tidak valid, coba lagi.' };\nreturn [{ json: p }];"
       },
-      "id": "89fd663b-2702-41c6-8e2a-c56e2fb1eb4f",
+      "id": "098d05e7-57b2-4ec9-aa5c-618f322e7c07",
       "name": "Parse Assess",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        640
+        688,
+        544
       ]
     }
   ],
@@ -621,10 +621,16 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "availableInMCP": false
   },
-  "id": "6interviewSUB01",
+  "versionId": "4dc08ace-c878-4784-b365-d775051057be",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"
+  },
+  "id": "G19GYBBnQ6ZxQad4",
   "tags": []
 }
