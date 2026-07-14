@@ -19,7 +19,7 @@
 ![Workflow](https://img.shields.io/badge/Workflow-AI%20Automation-orange)
 ![Architecture](https://img.shields.io/badge/Architecture-Microservices-informational)
 
-![Python](https://img.shields.io/badge/Python-3.11-3776AB)
+![Python](https://img.shields.io/badge/Python-3.12-3776AB)
 ![OpenAI](https://img.shields.io/badge/OpenAI-API-412991)
 
 ---
