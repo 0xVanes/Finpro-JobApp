@@ -584,17 +584,57 @@ def build_interview_pdf(
         score = assessment.get("score", "-")
         write(f"Verdict: {verdict}   (Skor: {score}/100)", 7)
 
-        for label, key in (("Alasan", "reasons"),
-                           ("Kelebihan", "strengths"),
-                           ("Perlu ditingkatkan", "improvements")):
+        # Cakupan wawancara & tingkat keyakinan
+        coverage = assessment.get("coverage", {}) or {}
+        if coverage or assessment.get("confidence"):
+            pdf.set_font("Helvetica", "", 10)
+            write(
+                f"Cakupan: {coverage.get('explored_count', 0)}/"
+                f"{coverage.get('total_points', 0)} poin tergali "
+                f"({coverage.get('ratio_pct', 0)}%)  |  "
+                f"Keyakinan: {assessment.get('confidence', '-')}"
+            )
+            if coverage.get("note"):
+                write(coverage["note"])
+            untested = coverage.get("untested_areas", []) or []
+            if untested:
+                write("Tidak pernah diuji: " + ", ".join(str(u) for u in untested))
+            pdf.ln(1)
+
+        # Rubrik per dimensi — dasar perhitungan skor
+        dimensions = assessment.get("dimensions", []) or []
+        if dimensions:
+            pdf.set_font("Helvetica", "B", 10)
+            write("Rubrik (dasar skor):")
+            for dim in dimensions:
+                pdf.set_font("Helvetica", "", 10)
+                write(f"  - {dim.get('name', '-')}: {dim.get('score', '-')}/10")
+                if dim.get("evidence"):
+                    pdf.set_font("Helvetica", "I", 9)
+                    write(f"      bukti: {dim['evidence']}", 5)
+
+        def _write_items(label: str, key: str) -> None:
+            """Tulis butir penilaian; mendukung item string maupun {point, evidence}."""
             items = assessment.get(key, []) or []
             if not items:
-                continue
+                return
             pdf.set_font("Helvetica", "B", 10)
             write(f"{label}:")
-            pdf.set_font("Helvetica", "", 10)
             for it in items:
-                write(f"  - {it}")
+                if isinstance(it, dict):
+                    point, evidence = it.get("point", ""), it.get("evidence", "")
+                else:
+                    point, evidence = it, ""
+                pdf.set_font("Helvetica", "", 10)
+                write(f"  - {point}")
+                if evidence:
+                    pdf.set_font("Helvetica", "I", 9)
+                    write(f"      bukti: {evidence}", 5)
+
+        _write_items("Alasan", "reasons")
+        _write_items("Kelebihan", "strengths")
+        _write_items("Perlu ditingkatkan", "improvements")
+        _write_items("Kesadaran diri (dinilai positif)", "self_awareness")
         pdf.ln(2)
 
         # Transkrip Q&A (FR-6.05)

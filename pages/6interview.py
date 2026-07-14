@@ -13,6 +13,8 @@ progress = (poin_saat_ini - 1) / total_poin. Deterministik & monotonik.
 Kontrak webhook & alur lengkap: lihat docs/interview.md.
 """
 
+import html
+
 import streamlit as st
 from menu import menu_with_redirect
 
@@ -84,8 +86,12 @@ def running_progress() -> int:
     return max(0, min(round((idx - 1) / total * 100), 99))
 
 
-def run_assessment() -> None:
-    """Panggil action=assess dan simpan hasilnya, lalu pindah ke fase done."""
+def run_assessment(history: list) -> None:
+    """
+    Panggil action=assess. Riwayat baru di-commit ke session_state HANYA bila
+    backend menjawab — supaya percobaan ulang setelah gagal tidak menggandakan
+    entri (lihat catatan atomic commit di kirim jawaban).
+    """
     with st.spinner("AI menilai keseluruhan wawancara..."):
         result = call_n8n(
             payload={
@@ -94,16 +100,43 @@ def run_assessment() -> None:
                 "job_id":       st.session_state.iv_job.get("job_id"),
                 "cv_profile":   st.session_state.iv_cv_profile,
                 "plan":         st.session_state.iv_plan,
-                "history":      st.session_state.iv_history,
+                "history":      history,
             },
             timeout=TIMEOUT_CV,
         )
     if "error" in result:
         show_error(result["error"])
         return
+    st.session_state.iv_history = history
     st.session_state.iv_assessment = result
     st.session_state.iv_stage = "done"
     st.rerun()
+
+
+def italic(text: object) -> str:
+    """
+    Render teks miring lewat HTML, bukan markdown `_..._`.
+
+    Markdown tersandung underscore di dalam kata (mis. kategori "soft_skill")
+    sehingga garis bawahnya bocor sebagai karakter literal. HTML + escape
+    membuat teks apa pun aman ditampilkan.
+    """
+    return (
+        f'<span style="font-style:italic;color:#64748B">'
+        f'{html.escape(str(text))}</span>'
+    )
+
+
+def as_point(item: object) -> tuple[str, str]:
+    """
+    Normalisasi butir penilaian menjadi (teks, bukti).
+
+    Assessor kini mengembalikan objek `{point, evidence}`; bentuk string lama
+    tetap didukung agar respons versi sebelumnya tidak merusak tampilan.
+    """
+    if isinstance(item, dict):
+        return str(item.get("point", "")), str(item.get("evidence", "") or "")
+    return str(item), ""
 
 
 def render_interviewer(turn: dict, heading: str = "") -> None:
@@ -113,7 +146,7 @@ def render_interviewer(turn: dict, heading: str = "") -> None:
             st.markdown(heading)
         reaction = turn.get("reaction", "")
         if reaction:
-            st.markdown(f"_{reaction}_")
+            st.markdown(italic(reaction), unsafe_allow_html=True)
         st.markdown(turn.get("question", ""))
 
 
@@ -287,7 +320,10 @@ elif st.session_state.iv_stage == "running":
         for pt in plan:
             i = pt.get("index", 0)
             mark = "✅" if i < cur_idx else ("🔹" if i == cur_idx else "⚪")
-            st.markdown(f"{mark} **{i}.** {pt.get('point', '-')} · _{pt.get('category', '')}_")
+            st.markdown(
+                f"{mark} **{i}.** {pt.get('point', '-')} · {italic(pt.get('category', ''))}",
+                unsafe_allow_html=True,
+            )
 
     # Riwayat Q&A yang sudah dijawab
     for turn in st.session_state.iv_history:
@@ -295,8 +331,15 @@ elif st.session_state.iv_stage == "running":
         with st.chat_message("user"):
             st.markdown(turn.get("answer", ""))
 
-    # Pertanyaan yang sedang berjalan (tanggapan + pertanyaan)
+    # Semua poin tuntas tetapi penilaian belum tersimpan (mis. assess sempat gagal)
     current = st.session_state.iv_current_q
+    if not current.get("question"):
+        st.success("Semua poin inti sudah tuntas. Tinggal penilaian akhir.")
+        if st.button("📊 Nilai Sekarang", use_container_width=True, type="primary"):
+            run_assessment(st.session_state.iv_history)
+        st.stop()
+
+    # Pertanyaan yang sedang berjalan (tanggapan + pertanyaan)
     render_interviewer(current)
 
     # Input jawaban
@@ -311,22 +354,25 @@ elif st.session_state.iv_stage == "running":
     send_clicked = col_send.button("➡️ Kirim Jawaban", use_container_width=True, type="primary")
     end_clicked  = col_end.button("🏁 Selesai & Nilai Sekarang", use_container_width=True)
 
-    def _record_answer(text: str) -> None:
-        """Catat giliran saat ini ke riwayat dengan poin yang sedang dibahas."""
-        st.session_state.iv_history.append({
+    def _pending_turn(text: str) -> dict:
+        """Susun giliran saat ini TANPA menyentuh session_state (belum di-commit)."""
+        return {
             "question":    current.get("question", ""),
             "answer":      text.strip(),
             "category":    current.get("category", ""),
             "point_index": st.session_state.iv_current_point_index,
             "reaction":    current.get("reaction", ""),
-        })
+        }
 
     if send_clicked:
         if not answer.strip():
             st.warning("Tulis jawaban dulu sebelum mengirim.")
             st.stop()
 
-        _record_answer(answer)
+        # ATOMIC COMMIT: riwayat baru disiapkan di variabel lokal dan dikirim ke n8n,
+        # tetapi baru ditulis ke session_state SETELAH backend menjawab. Kalau koneksi
+        # gagal, riwayat tetap utuh sehingga percobaan ulang tidak menggandakan entri.
+        history_next = st.session_state.iv_history + [_pending_turn(answer)]
 
         # Monitor menilai poin → Decide (cap 5) → Questioner (tanggapan + pertanyaan)
         with st.spinner("Pewawancara menanggapi jawabanmu..."):
@@ -340,22 +386,27 @@ elif st.session_state.iv_stage == "running":
                     "total_points":        st.session_state.iv_total_points,
                     "current_point_index": st.session_state.iv_current_point_index,
                     "point_qcount":        st.session_state.iv_point_qcount,
-                    "history":             st.session_state.iv_history,
+                    "history":             history_next,
                 },
                 timeout=TIMEOUT_CHAT,
             )
         if "error" in result:
-            show_error(result["error"])
+            show_error(result["error"] + "  Jawabanmu belum terkirim — silakan coba lagi.")
             st.stop()
 
+        # Backend menerima → baru commit
+        st.session_state.iv_history = history_next
+        st.session_state.iv_current_point_index = result.get(
+            "current_point_index", st.session_state.iv_current_point_index)
+        st.session_state.iv_point_qcount = result.get(
+            "point_qcount", st.session_state.iv_point_qcount)
+
         if result.get("done"):
-            # Semua poin inti tuntas → langsung menilai
-            run_assessment()
+            # Semua poin tuntas → kosongkan pertanyaan berjalan lalu nilai
+            st.session_state.iv_current_q = {}
+            run_assessment(st.session_state.iv_history)
+            st.rerun()          # assess gagal → tampilkan tombol "Nilai Sekarang"
         else:
-            st.session_state.iv_current_point_index = result.get(
-                "current_point_index", st.session_state.iv_current_point_index)
-            st.session_state.iv_point_qcount = result.get(
-                "point_qcount", st.session_state.iv_point_qcount)
             st.session_state.iv_current_q = {
                 "reaction": result.get("reaction", ""),
                 "question": result.get("question", ""),
@@ -364,12 +415,13 @@ elif st.session_state.iv_stage == "running":
             st.rerun()
 
     if end_clicked:
-        if answer.strip():
-            _record_answer(answer)
-        if not st.session_state.iv_history:
+        history_next = st.session_state.iv_history + (
+            [_pending_turn(answer)] if answer.strip() else []
+        )
+        if not history_next:
             st.warning("Jawab minimal satu pertanyaan sebelum meminta penilaian.")
             st.stop()
-        run_assessment()
+        run_assessment(history_next)   # commit terjadi di dalam, hanya bila sukses
 
 
 # ════════════════════════════════════════════════════════════════
@@ -403,27 +455,117 @@ elif st.session_state.iv_stage == "done":
         f'</div>',
         unsafe_allow_html=True,
     )
+    st.caption(
+        "Skor dihitung sistem sebagai rata-rata rubrik di bawah — bukan angka tunggal "
+        "dari AI. Verdict mengikuti ambang 70/100."
+    )
 
-    # ── Alasan / kelebihan / perbaikan ───────────────────────────
+    # ── Cakupan wawancara & tingkat keyakinan ────────────────────
+    coverage = assessment.get("coverage", {}) or {}
+    confidence = str(assessment.get("confidence", "") or "")
+    if coverage or confidence:
+        conf_color = {"high": "#16A34A", "medium": "#D97706", "low": "#DC2626"}.get(
+            confidence, "#64748B")
+        conf_text = {"high": "Tinggi", "medium": "Sedang", "low": "Rendah"}.get(
+            confidence, confidence or "—")
+        c1, c2 = st.columns([1, 2])
+        c1.metric(
+            "Cakupan wawancara",
+            f"{coverage.get('ratio_pct', 0)}%",
+            help="Berapa persen poin inti yang benar-benar tergali.",
+        )
+        with c2:
+            st.markdown(
+                f'<div style="margin-top:.6rem">Keyakinan penilaian: '
+                f'<b style="color:{conf_color}">{conf_text}</b> · '
+                f'{coverage.get("explored_count", 0)}/{coverage.get("total_points", 0)} '
+                f'poin tergali</div>',
+                unsafe_allow_html=True,
+            )
+            if coverage.get("note"):
+                st.caption(coverage["note"])
+
+        # Skill di CV/lowongan yang tak pernah ditanyakan sama sekali.
+        # Ditampilkan terpisah agar cakupan tidak terbaca "lengkap" hanya karena
+        # semua poin buatan Planner tergali (penilaian sirkular).
+        untested = coverage.get("untested_areas", []) or []
+        if untested:
+            st.markdown(
+                "".join(f'<span class="chip miss">⚠ {u}</span>' for u in untested),
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Area di CV/lowongan yang **tidak pernah diuji** dalam sesi ini — "
+                "menurunkan tingkat keyakinan penilaian."
+            )
+
+    # ── Rubrik per dimensi ───────────────────────────────────────
+    DIM_LABEL = {
+        "technical_depth":   "Kedalaman Teknis",
+        "problem_framing":   "Perumusan Masalah",
+        "communication":     "Komunikasi",
+        "rigor_and_honesty": "Kecermatan & Kejujuran",
+        "impact":            "Dampak",
+    }
+    dimensions = assessment.get("dimensions", []) or []
+    if dimensions:
+        section_lbl("Rubrik Penilaian (dasar skor)", "📊")
+        for dim in dimensions:
+            name = DIM_LABEL.get(dim.get("name", ""), dim.get("name", "—"))
+            dscore = dim.get("score")
+            try:
+                frac = max(0.0, min(float(dscore) / 10, 1.0))
+            except (TypeError, ValueError):
+                frac = 0.0
+            st.progress(frac, text=f"{name} — {dscore}/10")
+            if dim.get("evidence"):
+                st.caption(f"Bukti: {dim['evidence']}")
+
+    # ── Alasan ───────────────────────────────────────────────────
     reasons = assessment.get("reasons", []) or []
     if reasons:
         section_lbl("Alasan Penilaian", "💡")
         for r in reasons:
             st.markdown(f"- {r}")
 
+    # ── Kelebihan / perlu ditingkatkan (dengan bukti) ────────────
     col_s, col_i = st.columns(2)
-    strengths = assessment.get("strengths", []) or []
-    improvements = assessment.get("improvements", []) or []
     with col_s:
+        strengths = assessment.get("strengths", []) or []
         if strengths:
             section_lbl("Kelebihan", "✅")
-            for s in strengths:
-                st.markdown(f'<span class="chip has">✓ {s}</span>', unsafe_allow_html=True)
+            for item in strengths:
+                point, evidence = as_point(item)
+                st.markdown(f'<span class="chip has">✓ {point}</span>',
+                            unsafe_allow_html=True)
+                if evidence:
+                    st.caption(f"Bukti: {evidence}")
     with col_i:
+        improvements = assessment.get("improvements", []) or []
         if improvements:
             section_lbl("Perlu Ditingkatkan", "🎯")
-            for m in improvements:
-                st.markdown(f'<span class="chip miss">→ {m}</span>', unsafe_allow_html=True)
+            for item in improvements:
+                point, evidence = as_point(item)
+                kind = item.get("type", "") if isinstance(item, dict) else ""
+                tag = " (belum diuji)" if kind == "not_tested" else ""
+                st.markdown(f'<span class="chip miss">→ {point}{tag}</span>',
+                            unsafe_allow_html=True)
+                if evidence:
+                    st.caption(f"Bukti: {evidence}")
+
+    # ── Kesadaran diri: kejujuran dikreditkan, bukan dihukum ─────
+    self_awareness = assessment.get("self_awareness", []) or []
+    if self_awareness:
+        section_lbl("Kesadaran Diri (dinilai positif)", "🪞")
+        st.caption(
+            "Keterbatasan yang diakui sendiri oleh kandidat dicatat sebagai sinyal "
+            "kematangan, bukan kelemahan."
+        )
+        for item in self_awareness:
+            point, evidence = as_point(item)
+            st.markdown(f'<span class="chip has">🪞 {point}</span>', unsafe_allow_html=True)
+            if evidence:
+                st.caption(f"Bukti: {evidence}")
 
     # ── Transkrip + catatan per pertanyaan ───────────────────────
     per_q = assessment.get("per_question", []) or []
@@ -431,8 +573,12 @@ elif st.session_state.iv_stage == "done":
         for i, turn in enumerate(st.session_state.iv_history):
             cat = turn.get("category", "")
             if turn.get("reaction"):
-                st.markdown(f"_{turn['reaction']}_")
-            st.markdown(f"**Q{i + 1}**" + (f" · _{cat}_" if cat else "") + f": {turn.get('question', '')}")
+                st.markdown(italic(turn["reaction"]), unsafe_allow_html=True)
+            st.markdown(
+                f"**Q{i + 1}**" + (f" · {italic(cat)}" if cat else "")
+                + f": {turn.get('question', '')}",
+                unsafe_allow_html=True,
+            )
             st.markdown(f"> {turn.get('answer', '')}")
             if i < len(per_q):
                 fb = per_q[i]
