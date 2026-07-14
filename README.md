@@ -267,7 +267,7 @@ While the platform demonstrates an end-to-end AI-powered career assistant, sever
 
 - **LLM Hallucinations** – AI-generated recommendations, interview feedback, and career advice may contain inaccuracies and should be treated as guidance rather than professional advice.
 
-- **Text-to-SQL Reliability** – Complex or ambiguous natural language queries may produce incorrect SQL statements. A validation layer is required before execution.
+- **Text-to-SQL Reliability** – Complex or ambiguous natural language queries may produce incorrect SQL statements, data injection or unauthorized SQL query prompt. A validation layer is required before execution.
 
 - **Recommendation Accuracy** – Career match percentages are heuristic-based and depend on the quality of extracted skills and available job market data.
 

@@ -174,7 +174,6 @@ def call_n8n(payload: dict, timeout: int = TIMEOUT_OTHER) -> dict:
         logger.exception("N8N call gagal tidak terduga: %s", exc)
         return {"error": "❌ Terjadi kesalahan tak terduga. Hubungi administrator."}
 
-
 # ─── HELPER: CV — EKSTRAKSI TEKS + FALLBACK OCR ─────────────────
 #
 # OCR dipakai sebagai FALLBACK saja — hanya dijalankan kalau ekstraksi
