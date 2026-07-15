@@ -70,6 +70,8 @@ LIMIT 7;"""
 cursor.execute(query)
 rows = cursor.fetchall()
 
+st.markdown("Beberapa nilai gaji yang ditampilkan merupakan estimasi dari model ML kami sehingga kemungkinan adanya perbedaan dari nilai gaji tersebut.")
+
 ## HOT DEMAND SKILLS
 skill_counts = pd.DataFrame(rows).copy()
 skill_counts.columns = ["skill", "demand", "latest_date"]
