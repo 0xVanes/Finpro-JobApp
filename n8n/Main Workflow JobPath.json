@@ -9,13 +9,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "id": "2dd43a89-14f4-4a44-be28-17ca5d39a1df",
+      "id": "48f78912-35dd-4c5e-a62b-f8189e1f56df",
       "name": "Webhook Entry",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
-        -720,
-        400
+        3504,
+        2240
       ],
       "webhookId": "job-assistant",
       "alwaysOutputData": false,
@@ -120,13 +120,13 @@
           "fallbackOutput": "extra"
         }
       },
-      "id": "af812181-0ae0-4034-a200-cc47a3a3b603",
+      "id": "efa99c90-63dd-4864-977e-df6eb18cc37b",
       "name": "Route by Mode",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3,
       "position": [
-        -432,
-        368
+        3792,
+        2208
       ]
     },
     {
@@ -134,16 +134,16 @@
         "promptType": "define",
         "text": "={{ $json.body.query }}",
         "options": {
-          "systemMessage": "Kamu adalah asisten pencari kerja Indonesia. Gunakan tool rag_search untuk pencarian semantik (minat/skill). Jawab ramah dan singkat dalam Bahasa Indonesia. Jika pertanyaan di luar konteks lowongan kerja, jawab sopan bahwa kamu hanya membantu topik seputar pekerjaan."
+          "systemMessage": "Kamu adalah asisten pencari kerja Indonesia. Gunakan tool rag_search untuk pencarian semantik (minat/skill). Jawab ramah dan singkat dalam Bahasa Indonesia. Bila user ingin berbicara tentang keluh kesah pekerjaan, silahkan tanggapi dengan sopan. Jika pertanyaan di luar konteks lowongan kerja, jawab sopan bahwa kamu hanya membantu topik seputar pekerjaan."
         }
       },
-      "id": "09e32ff9-d484-4cb5-8a10-a9d2bc07e37e",
+      "id": "07b98ce4-2dc9-44a6-94ba-8e87a1e58b51",
       "name": "Chat Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        0,
-        0
+        4224,
+        1840
       ]
     },
     {
@@ -156,13 +156,13 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "36aa94d3-dfc0-4dd1-a4a1-f840a5182926",
+      "id": "1987f3b4-d0c2-4abd-8122-027013701f42",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        16,
-        176
+        4240,
+        2016
       ],
       "credentials": {
         "openAiApi": {
@@ -184,13 +184,13 @@
         "topK": 5,
         "options": {}
       },
-      "id": "94aff3e1-4ba5-43e4-9d0b-84ff0aac1fbb",
+      "id": "4eaa1241-326c-4d3e-8172-5d995f4d0040",
       "name": "Qdrant Vector Store",
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.3,
       "position": [
-        288,
-        112
+        4512,
+        1952
       ],
       "credentials": {
         "qdrantApi": {
@@ -203,13 +203,13 @@
       "parameters": {
         "options": {}
       },
-      "id": "1f162e80-7348-4b06-a2d4-b7f764b7c149",
+      "id": "c1f15e8f-d506-46b7-b61a-c1da6e609b06",
       "name": "Embeddings OpenAI",
       "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
       "typeVersion": 1.2,
       "position": [
-        352,
-        240
+        4576,
+        2080
       ],
       "credentials": {
         "openAiApi": {
@@ -222,13 +222,13 @@
       "parameters": {
         "jsCode": "// Chat Agent LangChain output ada di key 'output' (string biasa).\n// Streamlit butuh key 'answer'.\nconst text = $input.first().json.output || '';\nreturn [{ json: { answer: text, jobs: [] } }];"
       },
-      "id": "d3b27a61-f159-485e-b4e0-253f3882de01",
+      "id": "585f6bbc-f725-45dd-89a0-0c852c0635b6",
       "name": "Format Chat Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        816,
-        0
+        5040,
+        1840
       ]
     },
     {
@@ -236,16 +236,16 @@
         "promptType": "define",
         "text": "=Cari lowongan dengan kriteria: keyword={{ $json.body.keyword }}, work_type={{ $json.body.work_type }}, city={{ $json.body.city }}, salary_min={{ $json.body.salary_min }}, hybrid_only={{ $json.body.hybrid_only }}",
         "options": {
-          "systemMessage": "=Kamu agent SQL. Buat query SELECT dari tabel jobs (kolom: job_id, job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 20.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title LIKE '%keyword%'\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: city LIKE '%kota%'\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Tipe kerja: work_type = 'nilai' (kosongkan kalau user pilih \"Semua\")\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_id\":\"...\",\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}\n\nWAJIB: sertakan kolom job_id pada SELECT query utama DAN pada setiap objek di array jobs (key \"job_id\"). job_id dipakai fitur wawancara untuk mengambil deskripsi lowongan."
+          "systemMessage": "=Kamu agent SQL. Buat query (beberapa kali) dengan SELECT dari tabel jobs (kolom: job_id, job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 20.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title dan job_description LIKE '%keyword%' dan boleh secara semantic mencari keyword \nContoh: desain, designer, gambar\nteknik, enginer, engineer, insinyur\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: city LIKE '%kota%'\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Tipe kerja: work_type = 'nilai' (kosongkan kalau user pilih \"Semua\")\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_id\":\"...\",\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}\n\nWAJIB: sertakan kolom job_id pada SELECT query utama DAN pada setiap objek di array jobs (key \"job_id\"). job_id dipakai fitur wawancara untuk mengambil deskripsi lowongan. Harus memberikan jawaban dengan probabilitas yang paling mirip (semantic)"
         }
       },
-      "id": "a98c4ce8-7c3e-48b9-a314-f133135c8f20",
+      "id": "c1cdf83e-1ca0-49f5-93f5-dd9a5f37f695",
       "name": "SQL Search Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        0,
-        320
+        4224,
+        2160
       ]
     },
     {
@@ -253,18 +253,19 @@
         "model": {
           "__rl": true,
           "value": "gpt-4o-mini",
-          "mode": "list"
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
         },
         "builtInTools": {},
         "options": {}
       },
-      "id": "e01309ad-ff69-4b0b-941c-d42472baad02",
+      "id": "7082d1f7-dfed-4297-8baf-fb1bdaf83b16",
       "name": "OpenAI Chat Model1",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        0,
-        480
+        4224,
+        2320
       ],
       "credentials": {
         "openAiApi": {
@@ -281,13 +282,13 @@
         "query": "{{ $fromAI('query', 'Query SQL SELECT lengkap dan valid untuk MySQL dari tabel jobs. Hanya SELECT, tidak boleh INSERT/UPDATE/DELETE.', 'string') }}",
         "options": {}
       },
-      "id": "2cf4b769-b7da-41ad-a903-bcd9bf6bd002",
+      "id": "6b1ce6b4-20f5-41b3-ae3d-a023faed66c1",
       "name": "Execute a SQL query in MySQL",
       "type": "n8n-nodes-base.mySqlTool",
       "typeVersion": 2.5,
       "position": [
-        144,
-        496
+        4368,
+        2336
       ],
       "credentials": {
         "mySql": {
@@ -298,15 +299,15 @@
     },
     {
       "parameters": {
-        "jsCode": "// SQL Search Agent diinstruksikan mengembalikan JSON string di key 'output'.\n// Parse dengan aman, fallback ke error jika format tidak valid.\nlet raw = $input.first().json.output || '';\n// jaga-jaga kalau LLM membungkus dengan ```json ... ```\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { error: '⚠️ Format respons pencarian tidak valid, coba lagi.' };\n}\nif (!parsed.jobs) parsed.jobs = [];\nif (!parsed.top_cities) parsed.top_cities = [];\nreturn [{ json: parsed }];"
+        "jsCode": "// SQL Search Agent diinstruksikan mengembalikan JSON string di key 'output'.\n// Parse dengan aman, fallback ke error jika format tidak valid.\nlet raw = $input.first().json.output || '';\n// jaga-jaga kalau LLM membungkus dengan ```json ... ```\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { error: '⚠️ Format respons pencarian tidak valid, coba lagi.' };\n}\nif (!parsed.jobs) parsed.jobs = [];\nif (!parsed.top_cities) parsed.top_cities = [];\n\n\nreturn [{ json: parsed }];"
       },
-      "id": "142e85b7-5e5c-44e0-b028-978a0ae7f079",
+      "id": "84d1491c-1441-4d6a-86d8-edf33cf9238f",
       "name": "Format Search Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        816,
-        320
+        5040,
+        2160
       ]
     },
     {
@@ -317,13 +318,13 @@
           "systemMessage": "=Kamu agent analisis CV. Ekstrak skill, pengalaman, dan posisi terakhir dari teks CV berikut. Gunakan tool rag_search untuk mencari lowongan yang cocok dari database. Untuk setiap lowongan (maksimal 3), beri match_percentage (0-100), matching_skills, missing_skills, dan advice singkat.\n\nKembalikan HANYA JSON (tanpa teks lain, tanpa markdown fence) dengan format persis:\n{\"candidate_profile\": {\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]}, \"recommendations\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"match_percentage\":0,\"matching_skills\":[\"...\"],\"missing_skills\":[\"...\"],\"advice\":\"...\"}]}"
         }
       },
-      "id": "e7a60ad3-93c3-4304-988c-d96f772a5085",
+      "id": "d4900781-f0aa-4b4c-956d-3229dcb2e42e",
       "name": "CV Matcher Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        16,
-        720
+        4240,
+        2560
       ]
     },
     {
@@ -336,13 +337,13 @@
         "builtInTools": {},
         "options": {}
       },
-      "id": "eb814a44-ec7d-443f-8c4b-ae1d0f13e9b1",
+      "id": "368f497b-137f-4bea-b3a8-647fc9997e69",
       "name": "OpenAI Chat Model2",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        16,
-        880
+        4240,
+        2720
       ],
       "credentials": {
         "openAiApi": {
@@ -364,13 +365,13 @@
         "topK": 5,
         "options": {}
       },
-      "id": "d114cca2-1174-4cd1-a70f-3797fb996164",
+      "id": "13092f9f-0b8d-4c8f-9f64-a29452586b56",
       "name": "Qdrant Vector Store1",
       "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
       "typeVersion": 1.3,
       "position": [
-        80,
-        1008
+        4304,
+        2848
       ],
       "credentials": {
         "qdrantApi": {
@@ -383,13 +384,13 @@
       "parameters": {
         "options": {}
       },
-      "id": "d68d8875-4e76-4b97-8979-d5023a7a88a5",
+      "id": "06368fac-9d2d-4879-a30a-600ec76bc469",
       "name": "Embeddings OpenAI1",
       "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
       "typeVersion": 1.2,
       "position": [
-        80,
-        1136
+        4304,
+        2976
       ],
       "credentials": {
         "openAiApi": {
@@ -402,39 +403,39 @@
       "parameters": {
         "jsCode": "let raw = $input.first().json.output || '';\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  parsed = { error: '⚠️ Format respons CV Matcher tidak valid, coba lagi.' };\n}\nif (!parsed.candidate_profile) parsed.candidate_profile = {};\nif (!parsed.recommendations) parsed.recommendations = [];\nreturn [{ json: parsed }];"
       },
-      "id": "c163699e-d837-471e-a89f-9a760dc9c19c",
+      "id": "f3eaee6f-eb86-49d2-95e3-479df952b3c0",
       "name": "Format CV Matcher Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        496,
-        720
+        4720,
+        2560
       ]
     },
     {
       "parameters": {
         "options": {}
       },
-      "id": "b563d373-db2d-49bd-b0b8-a5ae50324ded",
+      "id": "5c7de36a-6553-4134-a50e-44447fa0d89e",
       "name": "Respond to Streamlit",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1376,
-        304
+        5600,
+        2144
       ]
     },
     {
       "parameters": {
         "jsCode": "const base = $('Format CV Matcher Response').first().json;\nconst careerData = $input.first().json;   // hasil dari sub-workflow\n\nreturn [{\n  json: {\n    ...base,\n    career_paths: careerData.career_paths || [],\n    gap_analysis: careerData.gap_analysis || [],\n    certifications: careerData.certifications || [],\n    career_roadmap: careerData.career_roadmap || {},\n  }\n}];"
       },
-      "id": "09633e06-526b-42fe-b881-415b05b79ea2",
+      "id": "9c4b2029-0eb7-4880-8b14-1e49741bbe44",
       "name": "Combine CV Full Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1136,
-        720
+        5360,
+        2560
       ]
     },
     {
@@ -471,13 +472,13 @@
         },
         "options": {}
       },
-      "id": "b2b174c7-d4ee-4f3d-86c5-42bf0ee8786f",
+      "id": "3076bbca-2a6e-46c8-915d-7aaa6c9bbb0f",
       "name": "Career Development Pipeline",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        768,
-        720
+        4992,
+        2560
       ],
       "notes": "PENTING: setelah import, buka node ini dan pilih ulang workflow 'Career Development Pipeline (Sub-workflow)' dari dropdown Workflow -> Database, karena workflowId tidak bisa diisi otomatis (ID-nya baru terbentuk setelah sub-workflow diimport ke instance n8n kamu)."
     },
@@ -515,13 +516,13 @@
         },
         "options": {}
       },
-      "id": "45e1b4c5-c664-41e8-a254-c856510d0beb",
+      "id": "9d8bf2f7-5d19-4cba-b63e-1c78e9e23b30",
       "name": "Interview Pipeline",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        16,
-        1296
+        4240,
+        3136
       ],
       "notes": "PENTING: setelah import, buka node ini dan pilih ulang workflow '6 - Interview (Sub-workflow)' dari dropdown Workflow -> Database, karena workflowId baru terbentuk setelah 6-interview.json diimport."
     }
@@ -764,7 +765,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "8c0fb304-9afa-47ac-8b25-43fe78c6878d",
+  "versionId": "06c24c5c-c3b2-4158-a4f8-f08071dd0eda",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"
