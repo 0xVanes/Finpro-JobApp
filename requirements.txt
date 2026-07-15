@@ -16,6 +16,7 @@ streamlit>=1.36.0
 python-dotenv
 python-docx
 pypdf
+pymupdf
 plotly
 pymupdf
 pillow
