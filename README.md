@@ -16,7 +16,6 @@
 ![RAG](https://img.shields.io/badge/RAG-Qdrant-blueviolet)
 ![Text--to--SQL](https://img.shields.io/badge/Text--to--SQL-LLM-yellowgreen)
 
-![Workflow](https://img.shields.io/badge/Workflow-AI%20Automation-orange)
 ![Architecture](https://img.shields.io/badge/Architecture-Microservices-informational)
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB)
