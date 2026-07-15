@@ -282,7 +282,7 @@ While the platform demonstrates an end-to-end AI-powered career assistant, sever
 
 - **Privacy Considerations** – Uploaded resumes contain sensitive personal information and require secure storage, encryption, and controlled access.
 
-- **Language Support** – The current implementation primarily targets English-language resumes and job descriptions.
+- **Language Support** – The current implementation primarily targets Bahasa Indonesia resumes and job descriptions.
 
 ---
 
