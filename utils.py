@@ -13,6 +13,16 @@ from dotenv import find_dotenv, load_dotenv
 # Tidak ada credential yang di-hardcode di sini
 load_dotenv(find_dotenv())
 
+def _sync_secrets_to_environ() -> None:
+    try:
+        for key, value in st.secrets.items():
+            if key not in os.environ:
+                os.environ[key] = str(value)
+    except Exception:
+        pass
+
+_sync_secrets_to_environ()
+
 N8N_WEBHOOK_URL: str | None = os.environ.get("N8N_WEBHOOK_URL")
 
 # Basic Auth untuk webhook n8n (opsional — kosongkan di .env kalau
