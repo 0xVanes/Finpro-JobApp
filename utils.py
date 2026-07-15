@@ -57,7 +57,7 @@ if not N8N_WEBHOOK_URL:
 # Agent, nilai ini bisa diturunkan lagi mendekati target asli.)
 TIMEOUT_CHAT:  int = 30   # NFR-2.01 RAG chat
 TIMEOUT_SQL:   int = 50   # Lihat catatan di atas
-TIMEOUT_CV:    int = 150  # mode cv_match sekarang = 5 AI Agent berantai
+TIMEOUT_CV:    int = 200  # mode cv_match sekarang = 5 AI Agent berantai
                           # (CV Matcher -> Career Path -> Gap Analysis ->
                           # Certification -> Roadmap). Tiap agent bisa
                           # makan 10-20 detik (LLM + tool call), jadi
