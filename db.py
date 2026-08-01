@@ -21,8 +21,7 @@ mysql_url = URL.create(
     port=int(os.getenv("MYSQL_PORT")),
     database=os.getenv("MYSQL_DATABASE"),
 )
-ca_path = str(resolve_path(os.getenv("MYSQL_SSL_CA")))  # Aiven wajib SSL
-engine = create_engine(mysql_url, connect_args={"ssl": {"ca": ca_path}})
+engine = create_engine(mysql_url)
 
 # Uji koneksi cepat
 with engine.connect() as c:
