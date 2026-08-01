@@ -39,8 +39,8 @@ with col1:
     keyword = st.text_input("Posisi / kata kunci", placeholder="Data Analyst")
 with col2:
     work_type_options = [
-        "Semua", "Full time", "Kontrak/Temporer",
-        "Paruh waktu", "Remote", "Internship",
+        "Semua", "Full-time", "Contract",
+        "Part-time", "Casual",
     ]
     work_type = st.selectbox("Tipe kerja (FR-3.03)", work_type_options)
 with col3:

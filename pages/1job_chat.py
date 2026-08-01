@@ -51,7 +51,9 @@ if prompt:
     with st.chat_message("assistant"):
         with st.spinner("Mencari jawaban..."):
             result = call_n8n(
-                payload={"mode": "chat", "query": prompt},
+                payload={"mode": "chat",
+                         "query": prompt,
+                         "history": st.session_state.chat_history,},
                 timeout=TIMEOUT_CHAT,
             )
 

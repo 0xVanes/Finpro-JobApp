@@ -134,7 +134,7 @@
         "promptType": "define",
         "text": "={{ $json.body.query }}",
         "options": {
-          "systemMessage": "Kamu adalah asisten pencari kerja Indonesia. Gunakan tool rag_search untuk pencarian semantik (minat/skill). Jawab ramah dan singkat dalam Bahasa Indonesia. Bila user ingin berbicara tentang keluh kesah pekerjaan, silahkan tanggapi dengan sopan. Jika pertanyaan di luar konteks lowongan kerja, jawab sopan bahwa kamu hanya membantu topik seputar pekerjaan."
+          "systemMessage": "=Kamu adalah asisten pencari kerja Indonesia. Gunakan tool rag_search untuk pencarian semantik (minat/skill). Jawab ramah dan singkat dalam Bahasa Indonesia. Bila user ingin berbicara tentang keluh kesah pekerjaan, silahkan tanggapi dengan sopan. Jika pertanyaan di luar konteks lowongan kerja, jawab sopan bahwa kamu hanya membantu topik seputar pekerjaan.\n\nHistory = {{ $json.body.history }}\nHistory adalah memori kamu. Hubungkan jawabanmu dengan history agar user merasa didengarkan."
         }
       },
       "id": "07b98ce4-2dc9-44a6-94ba-8e87a1e58b51",
@@ -236,7 +236,7 @@
         "promptType": "define",
         "text": "=Cari lowongan dengan kriteria: keyword={{ $json.body.keyword }}, work_type={{ $json.body.work_type }}, city={{ $json.body.city }}, salary_min={{ $json.body.salary_min }}, hybrid_only={{ $json.body.hybrid_only }}",
         "options": {
-          "systemMessage": "=Kamu agent SQL. Buat query (beberapa kali) dengan SELECT dari tabel jobs (kolom: job_id, job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 20.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title dan job_description LIKE '%keyword%' dan boleh secara semantic mencari keyword \nContoh: desain, designer, gambar\nteknik, enginer, engineer, insinyur\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: city LIKE '%kota%'\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Tipe kerja: work_type = 'nilai' (kosongkan kalau user pilih \"Semua\")\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_id\":\"...\",\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}\n\nWAJIB: sertakan kolom job_id pada SELECT query utama DAN pada setiap objek di array jobs (key \"job_id\"). job_id dipakai fitur wawancara untuk mengambil deskripsi lowongan. Harus memberikan jawaban dengan probabilitas yang paling mirip (semantic)"
+          "systemMessage": "=Kamu agent SQL. Buat query (beberapa kali) dengan SELECT dari tabel jobs (kolom: job_id, job_title,\ncompany_name, city, province, work_type, work_arrangement, seniority_level,\nsalary_min, salary_max, salary_period, is_salary_estimated, job_description).\nSelalu LIMIT 10.\n\nAturan filter:\n- Pencarian kata kunci posisi: job_title dan job_description LIKE '%keyword%' dan perluas ke pencarian sinonim dan variasi kata \nContoh semantic keyword:\n1. 'desain' sama seperti 'designer' dan 'gambar'\n2. 'teknik' sama seperti 'enginer', 'engineer' dan 'insinyur'\n3. 'programmer' sama seperti 'pengembang', 'developer'\n\nRumus pencarian semantik:\nContoh: keyword = \"insinyur\"\nVariasi: ['insinyur', 'engineer', 'enginer', 'teknik']\nQuery: (job_title LIKE '%insinyur%' OR job_title LIKE '%engineer%' OR job_title LIKE '%enginer%' OR job_title LIKE '%teknik%' OR job_description LIKE '%insinyur%' OR job_description LIKE '%engineer%' OR job_description LIKE '%enginer%' OR job_description LIKE '%teknik%')\n\n- Gaji minimum: salary_min IS NOT NULL AND salary_min >= nilai\n  (JANGAN pakai has_salary — kolom itu TIDAK ADA di skema ini)\n- Kota: (city LIKE '%kota%' OR province LIKE '%kota%')\n- Hanya remote/hybrid: work_arrangement IN ('Hybrid', 'Remote', 'hybrid', 'remote')\n  (JANGAN pakai is_hybrid — kolom itu TIDAK ADA di skema ini)\n- Jika user memilih \"Semua\", jangan tambahkan filter work_type.\n\nJalankan DUA query terpisah lewat tool sql_query:\n1. Query utama untuk list lowongan (LIMIT 20). Untuk field \"salary\" di hasil\n   akhir, gabungkan dari salary_min dan salary_max, format jadi rentang\n   rupiah (misal \"Rp 8.000.000 - Rp 12.000.000\") atau \"Tidak disebutkan\"\n   kalau NULL. JANGAN pakai kolom \"location\" atau \"salary_raw\" — kolom itu\n   TIDAK ADA di skema ini.\n2. Query agregasi: SELECT city, COUNT(*) AS count FROM jobs WHERE [kondisi\n   sama tanpa LIMIT 20] GROUP BY city ORDER BY count DESC LIMIT 5\n\nSetelah dapat kedua hasil, kembalikan HANYA JSON (tanpa teks lain, tanpa\nmarkdown fence) dengan format persis. Untuk field \"location\" di JSON,\ngabungkan city dan province:\n{\"jobs\": [{\"job_id\":\"...\",\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"work_type\":\"...\",\"salary\":\"...\"}], \"top_cities\": [{\"city\":\"...\",\"count\":0}]}\n\nWAJIB: sertakan kolom job_id pada SELECT query utama DAN pada setiap objek di array jobs (key \"job_id\"). job_id dipakai fitur wawancara untuk mengambil deskripsi lowongan. Jika hasil query utama kosong, periksa kembali apakah filter terlalu ketat.\nPerbaiki query dengan menggunakan pencocokan LIKE untuk work_type dan kota, lalu jalankan ulang maksimal 2 kali."
         }
       },
       "id": "c1cdf83e-1ca0-49f5-93f5-dd9a5f37f695",
@@ -244,8 +244,8 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        4224,
-        2160
+        4240,
+        2192
       ]
     },
     {
@@ -264,36 +264,13 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        4224,
-        2320
+        4240,
+        2384
       ],
       "credentials": {
         "openAiApi": {
           "id": "NYiiRxFJrsrOU4tg",
           "name": "OpenAi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Jalankan query SQL SELECT ke tabel jobs untuk mencari/menghitung lowongan sesuai kriteria (gaji, lokasi, tipe kerja, agregasi kota)",
-        "operation": "executeQuery",
-        "query": "{{ $fromAI('query', 'Query SQL SELECT lengkap dan valid untuk MySQL dari tabel jobs. Hanya SELECT, tidak boleh INSERT/UPDATE/DELETE.', 'string') }}",
-        "options": {}
-      },
-      "id": "6b1ce6b4-20f5-41b3-ae3d-a023faed66c1",
-      "name": "Execute a SQL query in MySQL",
-      "type": "n8n-nodes-base.mySqlTool",
-      "typeVersion": 2.5,
-      "position": [
-        4368,
-        2336
-      ],
-      "credentials": {
-        "mySql": {
-          "id": "OMrYs9kw3nfvgWIq",
-          "name": "Aiven Yusuf"
         }
       }
     },
@@ -307,7 +284,7 @@
       "typeVersion": 2,
       "position": [
         5040,
-        2160
+        2192
       ]
     },
     {
@@ -421,7 +398,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        5600,
+        6016,
         2144
       ]
     },
@@ -525,9 +502,77 @@
         3136
       ],
       "notes": "PENTING: setelah import, buka node ini dan pilih ulang workflow '6 - Interview (Sub-workflow)' dari dropdown Workflow -> Database, karena workflowId baru terbentuk setelah 6-interview.json diimport."
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Jalankan query SQL SELECT ke tabel jobs untuk mencari/menghitung lowongan sesuai kriteria (gaji, lokasi, tipe kerja, agregasi kota)",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('query', 'Query SQL SELECT lengkap dan valid untuk MySQL dari tabel jobs. Hanya SELECT, tidak boleh INSERT/UPDATE/DELETE.', 'string') }}",
+        "options": {}
+      },
+      "id": "6b1ce6b4-20f5-41b3-ae3d-a023faed66c1",
+      "name": "the SQL",
+      "type": "n8n-nodes-base.mySqlTool",
+      "typeVersion": 2.5,
+      "position": [
+        4384,
+        2368
+      ],
+      "credentials": {
+        "mySql": {
+          "id": "OMrYs9kw3nfvgWIq",
+          "name": "Aiven Yusuf"
+        }
+      }
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Webhook Entry": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n-student.purwadhika.com",
+            "x-real-ip": "114.122.100.38",
+            "x-forwarded-for": "114.122.100.38",
+            "x-forwarded-proto": "https",
+            "connection": "upgrade",
+            "content-length": "659",
+            "user-agent": "python-requests/2.34.2",
+            "accept-encoding": "gzip, deflate",
+            "accept": "*/*",
+            "content-type": "application/json",
+            "authorization": "Basic a2Vsb21wb2syOmszbDBtcDBrMg=="
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "mode": "chat",
+            "query": "pekerjaan apa yang ada untuk data analyst?",
+            "history": [
+              {
+                "role": "user",
+                "content": "saya mau tahu tentang data analyst"
+              },
+              {
+                "role": "assistant",
+                "content": "Data Analyst adalah profesional yang menganalisis data untuk membantu perusahaan dalam mengambil keputusan yang lebih baik. Tugas mereka mencakup pengumpulan, pengolahan, dan visualisasi data, serta membuat laporan yang mudah dipahami. \n\nKalau kamu ingin mencari lowongan kerja sebagai Data Analyst, saya bisa bantu! Apakah ada skill atau minat khusus yang ingin kamu masukkan dalam pencarian?"
+              },
+              {
+                "role": "user",
+                "content": "pekerjaan apa yang ada untuk data analyst?"
+              }
+            ]
+          },
+          "webhookUrl": "https://n8n-student.purwadhika.com/webhook/app-job-app",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Webhook Entry": {
       "main": [
@@ -649,17 +694,6 @@
         ]
       ]
     },
-    "Execute a SQL query in MySQL": {
-      "ai_tool": [
-        [
-          {
-            "node": "SQL Search Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Format Search Response": {
       "main": [
         [
@@ -758,6 +792,17 @@
           }
         ]
       ]
+    },
+    "the SQL": {
+      "ai_tool": [
+        [
+          {
+            "node": "SQL Search Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -765,7 +810,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "06c24c5c-c3b2-4158-a4f8-f08071dd0eda",
+  "versionId": "52d8d76d-9e28-483f-9a06-b426886b5c3f",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"

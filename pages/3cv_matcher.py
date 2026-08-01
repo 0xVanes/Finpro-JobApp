@@ -136,43 +136,6 @@ else:
     )
 
 # ═══════════════════════════════════════════════════════════════
-# BAGIAN 2 — CAREER PATH (FR-5.01)
-# ═══════════════════════════════════════════════════════════════
-
-career_paths = result.get("career_paths", [])
-
-if career_paths:
-    st.divider()
-    st.markdown("""
-    <div class="career-header">
-      <div class="emoji-bg">🛤️</div>
-      <h1>Rekomendasi Career Path</h1>
-      <p class="sub">5 jalur karir yang paling sesuai dengan profil CV kamu</p>
-      <div class="badge-row">
-        <span>Visualisasi jalur (FR-5.01)</span>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    cp_cols = st.columns(min(5, len(career_paths)) or 1)
-    for i, cp in enumerate(career_paths[:5]):
-        with cp_cols[i % len(cp_cols)]:
-            confidence = cp.get("confidence", 0)
-            st.markdown(
-                f'<div class="career-card">'
-                f'<div class="career-icon">🎯</div>'
-                f'<h3 class="career-title">{confidence}%</h3>'
-                f'<div class="career-job">{cp.get("career", "N/A")}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-
-    # Alasan tiap rekomendasi (di bawah grid, supaya tidak terlalu sempit)
-    with st.expander("Lihat alasan tiap rekomendasi career path"):
-        for cp in career_paths[:5]:
-            st.markdown(f"**{cp.get('career', 'N/A')}** ({cp.get('confidence', 0)}%) — {cp.get('reason', '—')}")
-
-# ═══════════════════════════════════════════════════════════════
 # BAGIAN 3 — SKILL GAP (FR-5.02)
 # ═══════════════════════════════════════════════════════════════
 
