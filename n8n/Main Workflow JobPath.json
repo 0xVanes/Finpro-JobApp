@@ -292,7 +292,7 @@
         "promptType": "define",
         "text": "={{ $json.body.cv_text }}",
         "options": {
-          "systemMessage": "=Kamu agent analisis CV. Ekstrak skill, pengalaman, dan posisi terakhir dari teks CV berikut. Gunakan tool rag_search untuk mencari lowongan yang cocok dari database. Untuk setiap lowongan (maksimal 3), beri match_percentage (0-100), matching_skills, missing_skills, dan advice singkat.\n\nKembalikan HANYA JSON (tanpa teks lain, tanpa markdown fence) dengan format persis:\n{\"candidate_profile\": {\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]}, \"recommendations\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"match_percentage\":0,\"matching_skills\":[\"...\"],\"missing_skills\":[\"...\"],\"advice\":\"...\"}]}"
+          "systemMessage": "=Kamu agent analisis CV. Ekstrak skill, pengalaman, dan posisi terakhir dari teks CV berikut. Gunakan tool rag_search untuk mencari lowongan yang cocok dari database. Untuk setiap lowongan (maksimal 3), beri match_percentage (0-100), matching_skills, missing_skills, dan advice singkat.\n\nATURAN EKSTRAKSI (candidate_profile)\n- current_role: posisi/jabatan terakhir yang eksplisit tertulis di CV. Jika tidak ada posisi eksplisit, gunakan posisi yang paling sesuai dengan pengalaman kerja terbaru — jangan mengarang jabatan yang tidak tersirat dari teks.\n- experience_years: hitung dari total durasi pengalaman kerja relevan yang tertulis (jumlahkan rentang tanggal antar posisi; overlap dihitung sekali). Jangan menebak angka jika CV tidak mencantumkan tanggal — dalam kasus ini, gunakan estimasi konservatif dan jelaskan asumsi secara implisit lewat advice, bukan mengarang angka pasti.\n- key_skills: hanya skill yang benar-benar disebutkan (baik eksplisit di bagian skill, maupun tersirat jelas dari deskripsi pengalaman/proyek). Jangan menambahkan skill generik yang tidak muncul di teks (misal \"leadership\" hanya jika ada bukti memimpin tim).\n\nBENCHMARK MATCH_PERCENTAGE\nGunakan rubrik berikut berdasarkan rasio matching_skills terhadap total requirement lowongan dan kesesuaian experience_years:\n\n- 90-100 (Sangat cocok): Hampir semua skill inti lowongan dimiliki kandidat; current_role sejalan langsung dengan job_title; experience_years memenuhi atau melebihi syarat umum posisi tersebut.\n- 75-89 (Cocok kuat): Sebagian besar skill inti dimiliki (matching_skills jauh lebih banyak dari missing_skills); hanya 1-2 gap skill yang moderat; experience_years cukup memadai.\n- 60-74 (Cocok sedang): Kandidat memiliki sebagian skill relevan, tapi ada beberapa missing_skills penting atau gap pengalaman yang cukup terasa; butuh waktu belajar tambahan.\n- 40-59 (Cocok dengan usaha/stretch): Hanya sedikit skill yang relevan/transferable; missing_skills signifikan atau experience_years jauh di bawah syarat umum posisi. Realistis hanya dengan upaya nyata atau sebagai pivot karier.\n- Di bawah 40 (Cocok lemah): Overlap minimal dengan requirement lowongan; hanya soft skill transferable. Cantumkan hanya jika ada alasan strategis yang jelas (misal skill komunikasi/pelayanan pelanggan relevan untuk posisi customer-facing).\n\nATURAN KALIBRASI\n- Jangan selalu memberi skor di rentang sempit (misal selalu 65-80). Skor antar 3 lowongan harus mencerminkan perbedaan fit yang nyata — gunakan rentang penuh jika memang berbeda kecocokannya.\n- match_percentage harus berbasis rasio matching_skills vs missing_skills yang eksplisit disebutkan pada masing-masing lowongan, bukan kesan umum.\n- Jika dua lowongan punya skill overlap yang mirip tapi salah satu butuh experience_years lebih tinggi dari yang dimiliki kandidat, beri skor lebih rendah untuk lowongan tersebut.\n- matching_skills dan missing_skills harus konsisten dengan key_skills di candidate_profile dan requirement lowongan hasil rag_search — jangan mencantumkan skill yang tidak ada di salah satu sumber tersebut.\n\nKembalikan HANYA JSON (tanpa teks lain, tanpa markdown fence) dengan format persis:\n{\"candidate_profile\": {\"current_role\":\"...\",\"experience_years\":0,\"key_skills\":[\"...\"]}, \"recommendations\": [{\"job_title\":\"...\",\"company_name\":\"...\",\"location\":\"...\",\"match_percentage\":0,\"matching_skills\":[\"...\"],\"missing_skills\":[\"...\"],\"advice\":\"...\"}]}"
         }
       },
       "id": "d4900781-f0aa-4b4c-956d-3229dcb2e42e",
@@ -404,7 +404,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const base = $('Format CV Matcher Response').first().json;\nconst careerData = $input.first().json;   // hasil dari sub-workflow\n\nreturn [{\n  json: {\n    ...base,\n    career_paths: careerData.career_paths || [],\n    gap_analysis: careerData.gap_analysis || [],\n    certifications: careerData.certifications || [],\n    career_roadmap: careerData.career_roadmap || {},\n  }\n}];"
+        "jsCode": "const base = $('Format CV Matcher Response').first().json;\nconst careerData = $input.first().json;   // hasil dari sub-workflow\n\nreturn [{\n  json: {\n    ...base,\n    certifications: careerData.certifications || [],\n    career_roadmap: careerData.career_roadmaps || {},\n  }\n}];"
       },
       "id": "9c4b2029-0eb7-4880-8b14-1e49741bbe44",
       "name": "Combine CV Full Response",
@@ -537,7 +537,7 @@
             "x-forwarded-for": "114.122.100.38",
             "x-forwarded-proto": "https",
             "connection": "upgrade",
-            "content-length": "659",
+            "content-length": "1295",
             "user-agent": "python-requests/2.34.2",
             "accept-encoding": "gzip, deflate",
             "accept": "*/*",
@@ -547,22 +547,9 @@
           "params": {},
           "query": {},
           "body": {
-            "mode": "chat",
-            "query": "pekerjaan apa yang ada untuk data analyst?",
-            "history": [
-              {
-                "role": "user",
-                "content": "saya mau tahu tentang data analyst"
-              },
-              {
-                "role": "assistant",
-                "content": "Data Analyst adalah profesional yang menganalisis data untuk membantu perusahaan dalam mengambil keputusan yang lebih baik. Tugas mereka mencakup pengumpulan, pengolahan, dan visualisasi data, serta membuat laporan yang mudah dipahami. \n\nKalau kamu ingin mencari lowongan kerja sebagai Data Analyst, saya bisa bantu! Apakah ada skill atau minat khusus yang ingin kamu masukkan dalam pencarian?"
-              },
-              {
-                "role": "user",
-                "content": "pekerjaan apa yang ada untuk data analyst?"
-              }
-            ]
+            "mode": "cv_match",
+            "cv_text": "Galih Mandiraa\nData Analyst\nMedan, Indonesia\nGalih.mandira@gmail.com\nPramuniaga professional 1+ tahun dibidang ritel\nKeterampilan:\nTeknis:\nPython\nHtml\ntableau\nNon-teknis:\nPelayanan pelanggan\nKomunikasi persuasive\nPendidikan:\nSTIE Budi Berjaya Medan\nPengalaman Kerja\nJanuari 2023- sekarang: PT. Melati Ritel, Medan\nMembantu pelanggan memilih pakaian\nMembantu manajer took meningkatkan penjualan\nJanuari-Maret 2022: PT Anggrek Ritel, Medan\nMenggembangkan pengetahuan produk\nMembantu mengecek stock barang\nApril 2022-Dec 2023: PT Ooredoo Indosat\nMerapihkan data\nMepresentasikan data\nBerbicara dengan stake holders\nGalih Mandira a Data Analyst Medan, Indonesia Galih.mandira@gmail.com Pramuniaga professional 1+ tahun dibidang ritel Keterampilan: Teknis: Python Html tableau Non-teknis: Pelayanan pelanggan Komunikasi persuasive Pendidikan: STIE Budi Berjaya Medan Pengalaman Kerja Januari 2023- sekarang: PT. Melati Ritel, Medan Membantu pelanggan memilih pakaian Membantu manajer took meningkatkan penjualan Januari-Maret 2022: PT Anggrek Ritel, Medan Menggembangkan pengetahuan produk Membantu mengecek stock barang April 2022-Dec 2023: PT Ooredoo Indosat Merapihkan data Mepresentasikan data Berbicara dengan stake holders",
+            "top_n": 3
           },
           "webhookUrl": "https://n8n-student.purwadhika.com/webhook/app-job-app",
           "executionMode": "production"
@@ -810,7 +797,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "52d8d76d-9e28-483f-9a06-b426886b5c3f",
+  "versionId": "54f4bd70-5b7f-4bf7-8e7f-b04a439e6d81",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c2d191aa5a7765d167f54affc1e1841d88547fed12ee32eae8a4c95363c5fb72"

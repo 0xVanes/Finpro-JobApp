@@ -26,6 +26,7 @@ def authenticated_menu():
     st.sidebar.header("Menu")
     
     # Using page_link
+    st.sidebar.page_link("pages/dashboard.py", label=" Dashboard")
     st.sidebar.page_link("pages/1job_chat.py", label="💬 Job Chat")
     st.sidebar.page_link("pages/2smart_search.py", label="🔍 Smart Search")
     st.sidebar.page_link("pages/3cv_matcher.py", label="📄 CV Matcher")
@@ -33,6 +34,8 @@ def authenticated_menu():
     # st.sidebar.page_link("pages/5skill_gap.py", label="🎯 Skill Gap")
     st.sidebar.page_link("pages/6interview.py", label="🎤 Interview")
     st.sidebar.page_link("pages/7market.py", label="📊 Market")
+    if st.session_state.get("role") == "admin":
+        st.sidebar.page_link("pages/monitoring.py", label=" Monitoring")
     
     # Logout button
     st.sidebar.divider()

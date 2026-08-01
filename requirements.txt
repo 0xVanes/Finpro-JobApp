@@ -19,6 +19,7 @@ pypdf
 plotly
 pymupdf
 pillow
+bcrypt
 
 # --- Databases (dipakai di notebook ingestion nanti) ---
 pymysql

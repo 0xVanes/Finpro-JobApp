@@ -164,6 +164,7 @@ Finpro-JobApp/
 ├── notebooks/          # Data processing, data ingestion, ML model processes
 ├── pages/              # Streamlit pages
 ├── app.py              # Main Streamlit page
+├── db.py              # call database
 ├── menu.py             # Streamlit sidebar page
 ├── requirements.txt    # Requirement environments
 ├── style.css           # Streamlit CSS
