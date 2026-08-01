@@ -16,7 +16,6 @@
 ![RAG](https://img.shields.io/badge/RAG-Qdrant-blueviolet)
 ![Text--to--SQL](https://img.shields.io/badge/Text--to--SQL-LLM-yellowgreen)
 
-![Workflow](https://img.shields.io/badge/Workflow-AI%20Automation-orange)
 ![Architecture](https://img.shields.io/badge/Architecture-Microservices-informational)
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB)
@@ -283,7 +282,7 @@ While the platform demonstrates an end-to-end AI-powered career assistant, sever
 
 - **Privacy Considerations** – Uploaded resumes contain sensitive personal information and require secure storage, encryption, and controlled access.
 
-- **Language Support** – The current implementation primarily targets English-language resumes and job descriptions.
+- **Language Support** – The current implementation primarily targets Bahasa Indonesia resumes and job descriptions.
 
 ---
 
